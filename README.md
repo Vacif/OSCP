@@ -29,8 +29,9 @@ Mở trực tiếp trên trình duyệt (máy tính hoặc điện thoại), kh�
 - **Cấp 2 — Trung cấp:** thu thập thông tin, dò quét và liệt kê, lỗ hổng web, kỹ thuật xã hội, CVE/CVSS, mật khẩu.
 - **Cấp 3 — Nâng cao:** leo thang đặc quyền (Linux & Windows), pivoting, Active Directory, bộ nhớ chương trình.
 - **Cấp 4 — Ôn thi và nghề nghiệp:** viết báo cáo, chiến lược thi, lộ trình luyện lab.
+- **Cấp 5 — Thực chiến tổng hợp:** hai bài capstone đi trọn một cuộc tấn công từ quét tới báo cáo — một máy Linux đơn, và một chuỗi Active Directory — ráp mọi kỹ thuật ở các cấp trước vào một mạch.
 
-Phần kỹ thuật nâng cao (Cấp 3) được trình bày ở **mức khái niệm**: tập trung vào cơ chế và cách phòng thủ, để người học hiểu bản chất và luyện sâu hơn một cách có trách nhiệm trong lab.
+Mỗi bài có phần thực hành với lệnh và output mẫu thật (nmap, enum4linux, hashcat, impacket, BloodHound...), payload minh hoạ, và góc phòng thủ. Mọi mô phỏng chạy trong trình duyệt với dữ liệu giả; các kỹ thuật tấn công trình bày để hiểu cơ chế và cách phòng, chỉ thực hành trong lab.
 
 ## Công nghệ
 

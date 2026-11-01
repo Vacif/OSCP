@@ -1,4 +1,4 @@
-// Kiểm tra nội dung trước khi build: đủ 24 bài, mã bài không trùng, frontmatter hợp lệ,
+// Kiểm tra nội dung trước khi build: đủ 26 bài, mã bài không trùng, frontmatter hợp lệ,
 // và mỗi file bài học import đúng những component mà nó dùng trong thân bài.
 // Chạy: node scripts/check-content.mjs
 import { readdirSync, readFileSync } from 'node:fs';
@@ -7,7 +7,7 @@ import { dirname, join } from 'node:path';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const dir = join(root, 'src/content/lessons');
-const EXPECTED = 24;
+const EXPECTED = 26;
 
 const errors = [];
 const warnings = [];
@@ -71,7 +71,7 @@ if (files.length !== EXPECTED) {
 
 // Phải đủ cả 5 cấp.
 const levels = new Set([...codes.keys()].map((c) => c.split('.')[0]));
-for (const lv of ['0', '1', '2', '3', '4']) {
+for (const lv of ['0', '1', '2', '3', '4', '5']) {
   if (!levels.has(lv)) errors.push(`Thiếu bài nào thuộc Cấp ${lv}`);
 }
 

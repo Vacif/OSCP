@@ -11,7 +11,7 @@ const first = lessons[0];
   <section class="hero wrap">
     <h1>Học bảo mật từ đầu,<br />theo lộ trình OSCP.</h1>
     <p class="hero-sub">
-      {lessons.length} bài, chia 5 cấp. Mỗi bài giải thích bằng ví dụ đời thường trước, sau đó mới tới thuật ngữ.
+      {lessons.length} bài, chia {levels.length} cấp. Mỗi bài giải thích bằng ví dụ đời thường trước, sau đó mới tới thuật ngữ.
       Phần khó có sơ đồ để bấm từng bước hoặc mô phỏng chạy ngay trong trình duyệt.
     </p>
     <div class="hero-cta">
@@ -44,7 +44,7 @@ const first = lessons[0];
   </section>
 
   <section class="wrap">
-    <h2>5 cấp độ</h2>
+    <h2>{levels.length} cấp độ</h2>
     <div class="levels">
       {levels.map((lv) => {
         const ls = lessons.filter((l) => l.data.level === lv.id);

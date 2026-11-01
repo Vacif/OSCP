@@ -217,3 +217,27 @@
 .sqlix-input, .sqlix-query { margin: 0; white-space: pre-wrap; word-break: break-word; }
 .sqlix-input code { color: #f0b04a; }
 .sqlix-query code { color: #e6e6e6; }
+
+/* Walkthrough */
+.walk-phases { list-style: none; display: flex; flex-wrap: wrap; gap: 4px; padding: 0; margin: 0 0 16px; }
+.walk-phases li { margin: 0; }
+.walk-phases button { font: inherit; font-size: 0.78rem; border: 1px solid var(--line); background: var(--bg); color: var(--muted); padding: 4px 10px; border-radius: 99px; cursor: pointer; white-space: nowrap; }
+.walk-phases li.done button { color: var(--text); border-color: var(--good); }
+.walk-phases li.done button::before { content: '✓ '; color: var(--good); }
+.walk-phases li.on button { background: var(--accent); border-color: var(--accent); color: var(--bg); font-weight: 600; }
+.walk-steps { list-style: none; padding: 0; margin: 0; }
+.walk-step { margin: 0 0 14px; border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 14px; }
+.walk-step.past { opacity: 0.7; }
+.walk-step.active { border-color: var(--accent); border-left-width: 3px; box-shadow: 0 1px 0 var(--line); }
+.walk-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
+.walk-badge { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 700; color: var(--accent); background: var(--accent-soft); padding: 2px 8px; border-radius: 99px; }
+.walk-cmd { margin: 0 0 8px; font-size: 0.82rem; white-space: pre-wrap; word-break: break-word; }
+.walk-prompt { color: #7cd296; }
+.walk-out { margin: 0 0 8px; font-size: 0.8rem; max-height: 260px; overflow: auto; white-space: pre; }
+.walk-out .walk-hit { background: rgba(240, 176, 74, 0.22); display: inline-block; width: 100%; box-shadow: inset 3px 0 0 #e0b04a; }
+.walk-take { margin: 0; font-size: 0.92rem; background: var(--surface-2); border-radius: 8px; padding: 9px 12px; }
+.walk-take.good { background: var(--good-soft); }
+.walk-take.warn { background: var(--warn-soft); }
+.walk-take.bad { background: var(--bad-soft); }
+.walk-take-label { display: inline-block; font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 700; color: var(--muted); margin-right: 8px; }
+.walk-count { font-size: 0.85rem; color: var(--muted); margin-left: auto; }

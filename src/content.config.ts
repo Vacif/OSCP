@@ -7,7 +7,7 @@ const lessons = defineCollection({
   schema: z.object({
     title: z.string(),
     code: z.string().regex(/^\d\.\d$/),
-    level: z.number().int().min(0).max(4),
+    level: z.number().int().min(0).max(5),
     summary: z.string(),
     duration: z.string(),
     objectives: z.array(z.string()).min(2),
