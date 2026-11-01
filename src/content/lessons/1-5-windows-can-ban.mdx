@@ -1,0 +1,90 @@
+---
+title: "Windows căn bản"
+code: "1.5"
+level: 1
+summary: "Người dùng, nhóm, dịch vụ và registry: những khái niệm Windows mà pentester cần nắm."
+duration: "60 phút"
+objectives:
+  - "Hiểu mô hình người dùng và nhóm trên Windows"
+  - "Biết các tài khoản quyền cao: Administrator và SYSTEM"
+  - "Nắm vai trò của dịch vụ (service) và registry"
+  - "Nhận ra vì sao Windows là mục tiêu lớn trong môi trường doanh nghiệp"
+---
+import Callout from '../../components/ui/Callout.astro';
+import ConceptMap from '../../components/sim/ConceptMap.tsx';
+import Quiz from '../../components/sim/Quiz.tsx';
+
+## Hình dung trước
+
+Nếu Linux giống một căn nhà gọn gàng mọi thứ để ngoài tủ, thì Windows giống một toà nhà văn phòng lớn: có phòng nhân sự quản lý thẻ ra vào, có hệ thống trung tâm điều khiển mọi cửa. Phần lớn máy tính trong doanh nghiệp chạy Windows, nên hiểu nó là bắt buộc.
+
+## Kiến thức chính
+
+### Người dùng và nhóm
+
+Windows cũng có người dùng và nhóm như Linux, nhưng tên gọi khác:
+
+- **Administrator** — tài khoản quản trị, tương tự root.
+- **SYSTEM** — tài khoản mà hệ điều hành dùng để chạy các thành phần lõi; quyền còn cao hơn Administrator ở một số mặt. Nhiều lần "leo thang đặc quyền" trên Windows chính là trở thành SYSTEM.
+- **Nhóm Administrators** — thành viên nhóm này có quyền quản trị.
+
+### Dịch vụ (service)
+
+Dịch vụ là chương trình chạy ngầm, thường tự khởi động cùng máy, ví dụ máy chủ web hay phần mềm diệt virus. Mỗi dịch vụ chạy dưới một tài khoản. Nếu một dịch vụ chạy với quyền SYSTEM mà lại có cấu hình sai, nó trở thành con đường để chiếm quyền. Đây là chủ đề của bài 3.2.
+
+### Registry
+
+Registry là một cơ sở dữ liệu trung tâm lưu cấu hình của Windows: thiết lập hệ thống, phần mềm nào tự chạy khi khởi động, và nhiều thứ khác. Pentester quan tâm tới registry vì nó có thể chứa mật khẩu lưu sẵn, hoặc các mục cho phép chạy chương trình khi máy khởi động.
+
+### Vì sao Windows quan trọng với OSCP
+
+Doanh nghiệp thường quản lý hàng trăm máy Windows tập trung bằng Active Directory (Cấp 3). Chiếm được một máy Windows thường chỉ là bước đầu; mục tiêu thật là lan ra cả hệ thống.
+
+## Sơ đồ: ai có quyền gì
+
+<ConceptMap
+  client:visible
+  title="Các mức tài khoản trên một máy Windows"
+  width={640}
+  height={300}
+  nodes={[
+    { id: 'system', label: 'SYSTEM', x: 320, y: 55, tone: 'warn', detail: 'Tài khoản của hệ điều hành. Quyền cao nhất trên máy. Đích đến của leo thang đặc quyền.' },
+    { id: 'admin', label: 'Administrator', x: 320, y: 140, tone: 'accent', detail: 'Quản trị máy: cài phần mềm, đổi cấu hình, đọc dữ liệu của mọi người dùng.' },
+    { id: 'user', label: 'Người dùng thường', x: 180, y: 230, detail: 'Chỉ làm việc trong phạm vi của mình. Điểm khởi đầu thường thấy sau khi chiếm được một tài khoản.' },
+    { id: 'svc', label: 'Tài khoản dịch vụ', x: 460, y: 230, detail: 'Tài khoản dành riêng để chạy một dịch vụ. Quyền tuỳ cấu hình; cấu hình sai có thể bị lợi dụng để leo thang.' },
+  ]}
+  edges={[
+    { from: 'user', to: 'admin', label: 'leo thang', dashed: true },
+    { from: 'svc', to: 'admin', label: 'leo thang', dashed: true },
+    { from: 'admin', to: 'system', label: 'leo thang', dashed: true },
+  ]}
+/>
+
+## Góc phòng thủ
+
+<Callout type="defense">
+Nguyên tắc quyền tối thiểu áp dụng mạnh trên Windows: người dùng hằng ngày không nên thuộc nhóm Administrators, và dịch vụ nên chạy bằng tài khoản quyền thấp nhất đủ dùng. Windows cũng có nhật ký sự kiện (Event Log) ghi lại đăng nhập và thay đổi quan trọng; bên phòng thủ dựa vào đó để phát hiện bất thường.
+</Callout>
+
+## Lỗi người mới hay gặp
+
+- Nghĩ Administrator là quyền cao nhất. Trên nhiều máy, SYSTEM còn cao hơn.
+- Bỏ qua các dịch vụ khi liệt kê một máy Windows.
+- Quen tay dùng lệnh Linux trên Windows. Windows có PowerShell và cú pháp riêng (bài 1.6).
+
+## Kiểm tra nhanh
+
+<Quiz
+  client:visible
+  questions={[
+    { q: 'Tài khoản nào thường là đích đến cuối cùng khi leo thang đặc quyền trên Windows?', options: ['Guest', 'SYSTEM', 'Người dùng thường'], answer: 1, explain: 'SYSTEM có quyền cao nhất để điều khiển máy.' },
+    { q: 'Registry trên Windows là gì?', options: ['Một thư mục chứa file tạm', 'Cơ sở dữ liệu cấu hình trung tâm', 'Một loại virus'], answer: 1, explain: 'Registry lưu cấu hình hệ thống và phần mềm.' },
+    { q: 'Vì sao dịch vụ (service) đáng chú ý với pentester?', options: ['Vì chúng luôn an toàn', 'Vì cấu hình sai của dịch vụ chạy quyền cao có thể bị lợi dụng', 'Vì chúng không bao giờ chạy'], answer: 1, explain: 'Dịch vụ chạy với quyền cao mà cấu hình sai là con đường leo thang phổ biến.' },
+  ]}
+/>
+
+## Ghi nhớ
+
+- Windows: Administrator ~ quản trị, SYSTEM ~ quyền cao nhất của hệ điều hành.
+- Dịch vụ chạy ngầm dưới một tài khoản; cấu hình sai là rủi ro.
+- Registry là kho cấu hình trung tâm, đáng để liệt kê.

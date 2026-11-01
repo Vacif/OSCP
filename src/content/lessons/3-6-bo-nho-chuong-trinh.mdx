@@ -1,0 +1,90 @@
+---
+title: "Chương trình dùng bộ nhớ như thế nào"
+code: "3.6"
+level: 3
+summary: "Stack là gì, vì sao dữ liệu dài quá chỗ lại nguy hiểm, và các lớp bảo vệ bộ nhớ hiện đại."
+duration: "75 phút"
+objectives:
+  - "Hiểu stack và vai trò của địa chỉ trả về"
+  - "Giải thích vì sao ghi quá chỗ dành sẵn lại gây lỗi"
+  - "Hiểu ý nghĩa của tràn bộ đệm ở mức khái niệm"
+  - "Biết các lớp bảo vệ bộ nhớ hiện đại làm gì"
+---
+import Callout from '../../components/ui/Callout.astro';
+import ConceptMap from '../../components/sim/ConceptMap.tsx';
+import Quiz from '../../components/sim/Quiz.tsx';
+
+## Hình dung trước
+
+Hãy tưởng tượng một chồng khay trong căng tin: khay mới đặt lên trên, lấy ra cũng từ trên xuống. Khi một hàm trong chương trình được gọi, máy tính đặt lên chồng này một khay chứa dữ liệu tạm của hàm, trong đó có cả một mẩu giấy ghi "chạy xong thì quay về đâu". Chồng khay đó gọi là *stack*.
+
+## Kiến thức chính
+
+### Stack và địa chỉ trả về
+
+Mỗi khi một hàm chạy, nó được cấp một vùng nhớ trên stack để chứa biến cục bộ. Cùng vùng đó còn lưu **địa chỉ trả về**: nơi chương trình cần quay lại sau khi hàm kết thúc. Đây là chi tiết quan trọng nhất của bài.
+
+### Vì sao ghi quá chỗ lại nguy hiểm
+
+Giả sử một hàm dành 8 ô nhớ cho một cái tên. Nếu chương trình chép dữ liệu vào đó mà **không kiểm tra độ dài**, và dữ liệu dài hơn 8 ô, phần thừa sẽ tràn sang các ô bên cạnh. Trong đó có thể có cả ô chứa địa chỉ trả về.
+
+Nếu địa chỉ trả về bị ghi đè bằng dữ liệu linh tinh, khi hàm kết thúc chương trình sẽ nhảy tới một nơi vô nghĩa và sập. Đây là *tràn bộ đệm trên stack* (stack buffer overflow). Trong trường hợp bị lợi dụng có chủ đích, việc kiểm soát được địa chỉ trả về có thể dẫn tới việc chương trình chạy mã do kẻ tấn công chọn.
+
+Ở cấp này, mục tiêu là hiểu **cơ chế**: dữ liệu không được kiểm tra độ dài có thể ghi đè lên phần điều khiển luồng chạy của chương trình. Đây là nền để sau này học sâu hơn một cách có trách nhiệm trong lab.
+
+### Bố cục một khung stack (đơn giản hoá)
+
+<ConceptMap
+  client:visible
+  title="Vùng nhớ của một hàm trên stack"
+  width={640}
+  height={300}
+  nodes={[
+    { id: 'buf', label: 'Vùng chứa tên', sub: '8 ô', x: 140, y: 90, detail: 'Chỗ dành cho dữ liệu người dùng nhập. Nếu chép vào đây mà không giới hạn độ dài, phần thừa sẽ tràn xuống dưới.' },
+    { id: 'saved', label: 'Dữ liệu lưu của hàm gọi', x: 140, y: 170, tone: 'warn', detail: 'Các giá trị cần khôi phục khi hàm kết thúc. Nằm ngay cạnh vùng chứa tên nên dễ bị tràn tới.' },
+    { id: 'ret', label: 'Địa chỉ trả về', x: 140, y: 250, tone: 'warn', detail: 'Nơi chương trình quay về sau khi hàm xong. Nếu bị ghi đè, luồng chạy của chương trình bị đổi hướng. Đây là mấu chốt của tràn bộ đệm.' },
+    { id: 'canary', label: 'Giá trị canh gác', sub: 'lớp bảo vệ', x: 440, y: 170, tone: 'accent', detail: 'Stack canary: một giá trị bí mật đặt ngay trước địa chỉ trả về. Trước khi hàm kết thúc, chương trình kiểm tra nó có bị đổi không; nếu có thì dừng ngay. Một trong các lớp bảo vệ hiện đại.' },
+  ]}
+  edges={[
+    { from: 'buf', to: 'saved', label: 'tràn xuống' },
+    { from: 'saved', to: 'ret', label: 'tràn tiếp' },
+    { from: 'canary', to: 'ret', label: 'bảo vệ', dashed: true },
+  ]}
+/>
+
+### Các lớp bảo vệ bộ nhớ hiện đại
+
+Hệ điều hành và trình biên dịch ngày nay có nhiều lớp phòng thủ, giải thích vì sao khai thác loại này khó hơn xưa nhiều:
+
+- **Stack canary:** giá trị canh gác như mô tả ở trên, phát hiện việc ghi đè.
+- **DEP/NX:** đánh dấu vùng dữ liệu là "không được chạy như mã", nên dữ liệu tràn vào không chạy được trực tiếp.
+- **ASLR:** xáo trộn ngẫu nhiên vị trí các vùng nhớ mỗi lần chạy, khiến kẻ tấn công khó đoán địa chỉ.
+
+## Góc phòng thủ
+
+<Callout type="defense">
+Gốc rễ của lỗi nằm ở việc chép dữ liệu mà không kiểm tra độ dài. Phòng thủ từ gốc: dùng các hàm có giới hạn độ dài, kiểm tra kích thước đầu vào, và dùng ngôn ngữ lập trình tự quản lý bộ nhớ khi có thể. Về phía hệ thống: bật đầy đủ canary, DEP/NX, ASLR, và cập nhật phần mềm. Nhiều lớp cùng lúc khiến một lỗi đơn lẻ khó trở thành khai thác hoàn chỉnh.
+</Callout>
+
+## Lỗi người mới hay gặp
+
+- Nghĩ tràn bộ đệm chỉ làm chương trình sập. Sập chỉ là biểu hiện dễ thấy nhất; vấn đề an ninh nằm ở khả năng đổi hướng luồng chạy.
+- Bỏ qua các lớp bảo vệ khi học, rồi ngạc nhiên vì kỹ thuật cũ không còn hiệu quả.
+- Lẫn lộn stack với các vùng nhớ khác. Bài này chỉ nói về stack, vùng nhớ dễ hình dung nhất.
+
+## Kiểm tra nhanh
+
+<Quiz
+  client:visible
+  questions={[
+    { q: 'Vì sao địa chỉ trả về trên stack lại quan trọng với an ninh?', options: ['Vì nó lưu mật khẩu', 'Vì ghi đè lên nó có thể đổi hướng luồng chạy của chương trình', 'Vì nó làm chương trình nhanh hơn'], answer: 1, explain: 'Địa chỉ trả về quyết định chương trình chạy tiếp ở đâu; kiểm soát được nó là kiểm soát luồng chạy.' },
+    { q: 'Nguyên nhân gốc của tràn bộ đệm trên stack là gì?', options: ['Mạng chậm', 'Chép dữ liệu vào vùng nhớ mà không kiểm tra độ dài', 'Mật khẩu yếu'], answer: 1, explain: 'Khi không giới hạn độ dài, dữ liệu thừa tràn sang các ô lân cận.' },
+    { q: 'ASLR bảo vệ bằng cách nào?', options: ['Mã hoá dữ liệu', 'Xáo trộn ngẫu nhiên vị trí các vùng nhớ mỗi lần chạy', 'Chặn mạng'], answer: 1, explain: 'ASLR làm địa chỉ thay đổi mỗi lần chạy nên khó đoán.' },
+  ]}
+/>
+
+## Ghi nhớ
+
+- Stack lưu biến cục bộ và địa chỉ trả về của mỗi hàm.
+- Chép dữ liệu không kiểm tra độ dài có thể ghi đè địa chỉ trả về và đổi hướng luồng chạy.
+- Canary, DEP/NX và ASLR là các lớp bảo vệ hiện đại; phòng thủ từ gốc là kiểm tra độ dài đầu vào.

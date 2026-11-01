@@ -1,0 +1,94 @@
+---
+title: "Linux căn bản"
+code: "1.4"
+level: 1
+summary: "Di chuyển trong terminal, đọc file, và hiểu hệ thống quyền rwx mà bạn sẽ gặp suốt lộ trình."
+duration: "75 phút"
+objectives:
+  - "Dùng được các lệnh di chuyển và đọc file cơ bản"
+  - "Hiểu cấu trúc thư mục Linux"
+  - "Đọc và tính được quyền file dạng rwx và dạng số"
+  - "Giải thích vì sao quyền sai là nguồn gốc của nhiều lỗ hổng"
+---
+import Callout from '../../components/ui/Callout.astro';
+import FakeTerminal from '../../components/sim/FakeTerminal.tsx';
+import PermissionViz from '../../components/sim/PermissionViz.tsx';
+import Quiz from '../../components/sim/Quiz.tsx';
+
+## Hình dung trước
+
+Terminal giống như nhắn tin cho máy tính: bạn gõ một dòng, máy làm đúng dòng đó. Nghe khô khan nhưng lại nhanh và chính xác hơn bấm chuột, nhất là khi làm việc trên máy ở xa không có giao diện.
+
+## Kiến thức chính
+
+### Cấu trúc thư mục
+
+Linux xếp mọi thứ dưới một gốc chung là `/`. Vài thư mục cần nhớ:
+
+| Thư mục | Chứa gì |
+|---|---|
+| `/home/tên` | Dữ liệu cá nhân của mỗi người dùng |
+| `/etc` | File cấu hình hệ thống |
+| `/etc/passwd` | Danh sách người dùng (đọc được bởi mọi người) |
+| `/etc/shadow` | Mật khẩu đã băm (chỉ root đọc) |
+| `/tmp` | File tạm, ai cũng ghi được |
+| `/root` | Thư mục riêng của tài khoản quản trị root |
+
+### Vài lệnh để sống sót
+
+- `pwd` — tôi đang ở thư mục nào
+- `ls -l` — liệt kê file kèm quyền
+- `cd thu-muc` — chuyển thư mục (`cd ..` để lùi ra)
+- `cat file` — in nội dung file
+- `whoami` / `id` — tôi là ai, thuộc nhóm nào
+
+### Thử ngay
+
+Terminal dưới đây chạy hoàn toàn trong trình duyệt, với hệ thống file giả. Làm lần lượt các nhiệm vụ bên phải. Chú ý chuyện gì xảy ra khi bạn thử đọc `/etc/shadow`:
+
+<FakeTerminal client:visible />
+
+### Quyền file
+
+Mỗi file có quyền cho ba nhóm: **chủ sở hữu**, **nhóm**, và **người khác**. Mỗi nhóm có ba quyền:
+
+- `r` (read) — đọc
+- `w` (write) — ghi
+- `x` (execute) — chạy (với thư mục: đi vào được)
+
+Quyền thường viết dạng số: r = 4, w = 2, x = 1, cộng lại cho từng nhóm. Bấm các ô dưới đây để thấy quan hệ giữa dạng chữ và dạng số:
+
+<PermissionViz client:visible />
+
+<Callout type="note">
+Chuyển qua tab "Thư mục" để thấy quyền có nghĩa khác: với thư mục, `x` nghĩa là được đi vào, còn `r` chỉ là xem được danh sách tên file.
+</Callout>
+
+## Góc phòng thủ
+
+<Callout type="defense">
+Rất nhiều lỗ hổng leo thang đặc quyền (bài 3.1) bắt nguồn từ quyền đặt sai: một file cấu hình chứa mật khẩu nhưng ai cũng đọc được, hoặc một script chạy với quyền root nhưng người thường lại sửa được nội dung. Nguyên tắc phòng thủ là quyền tối thiểu: chỉ cấp đúng mức cần thiết, không hơn. Lệnh để kiểm tra là `ls -l`, để sửa là `chmod` và `chown`.
+</Callout>
+
+## Lỗi người mới hay gặp
+
+- Gõ lệnh với `sudo` cho mọi thứ vì ngại lỗi quyền, vô tình tạo file mà người thường không sửa được.
+- Nhầm `r` trên thư mục với quyền đọc file bên trong. Đọc được tên file chưa chắc đọc được nội dung.
+- Sợ terminal. Cứ gõ sai thoải mái trong lab; gần như mọi lệnh đọc đều vô hại.
+
+## Kiểm tra nhanh
+
+<Quiz
+  client:visible
+  questions={[
+    { q: 'Quyền rwxr-x--- ứng với con số nào?', options: ['750', '740', '755'], answer: 0, explain: 'rwx = 7, r-x = 5, --- = 0, vậy là 750.' },
+    { q: 'File /etc/shadow thường không cho người dùng thường đọc, vì sao?', options: ['Vì nó rỗng', 'Vì nó chứa mật khẩu đã băm', 'Vì nó là thư mục'], answer: 1, explain: 'shadow chứa hash mật khẩu, để lộ sẽ giúp kẻ tấn công thử bẻ khoá ngoại tuyến.' },
+    { q: 'Với một thư mục, quyền x nghĩa là gì?', options: ['Được xoá thư mục', 'Được đi vào thư mục', 'Được đổi tên thư mục'], answer: 1, explain: 'x trên thư mục cho phép cd vào trong; xoá hay đổi tên lại phụ thuộc quyền w của thư mục cha.' },
+  ]}
+/>
+
+## Ghi nhớ
+
+- Mọi thứ nằm dưới gốc `/`; `/etc` chứa cấu hình, `/home` chứa dữ liệu người dùng.
+- Quyền chia ba nhóm, mỗi nhóm có rwx; r=4, w=2, x=1.
+- Quyền đặt sai là một trong những nguồn lỗ hổng phổ biến nhất.

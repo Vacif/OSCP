@@ -1,0 +1,105 @@
+---
+title: "Leo thang đặc quyền trên Linux"
+code: "3.1"
+level: 3
+summary: "Từ một tài khoản thường tới quyền root, qua những cấu hình sai thường gặp. Ở mức khái niệm."
+duration: "70 phút"
+objectives:
+  - "Hiểu leo thang đặc quyền là gì và vì sao cần nó"
+  - "Nhận ra các dạng cấu hình sai phổ biến trên Linux"
+  - "Biết cách tiếp cận có hệ thống khi tìm đường leo thang"
+  - "Nắm cách phòng thủ cho từng dạng"
+---
+import Callout from '../../components/ui/Callout.astro';
+import DecisionTree from '../../components/sim/DecisionTree.tsx';
+import Checklist from '../../components/sim/Checklist.tsx';
+import Quiz from '../../components/sim/Quiz.tsx';
+
+## Hình dung trước
+
+Bạn vào được sảnh một toà nhà bằng thẻ khách. Thẻ này không mở được phòng máy chủ. Leo thang đặc quyền là tìm cách biến thẻ khách thành thẻ quản lý: không phá cửa, mà lợi dụng những sơ hở trong cách toà nhà được vận hành.
+
+## Kiến thức chính
+
+### Vì sao cần leo thang
+
+Sau khi khai thác một dịch vụ, bạn thường chỉ có quyền của một người dùng thường. Nhiều việc quan trọng, như đọc dữ liệu nhạy cảm hay lan sang máy khác, đòi hỏi quyền root. Leo thang đặc quyền là bước nối giữa "vào được" và "kiểm soát được".
+
+Đây là phần được dạy ở mức khái niệm: bạn cần hiểu **vì sao** mỗi cấu hình sai dẫn tới leo thang, để sau này tự nhận ra trong lab và biết cách phòng.
+
+### Các dạng cấu hình sai thường gặp
+
+- **Quyền sudo quá rộng:** người dùng được phép chạy một số lệnh với quyền root. Nếu lệnh đó có cách "thoát" ra thành shell, người dùng chiếm được root.
+- **File có bit SUID đặt sai:** một số chương trình được cấu hình để luôn chạy với quyền của chủ sở hữu (thường là root). Nếu một chương trình như vậy cho phép làm việc ngoài ý định, nó thành đường leo thang.
+- **File ghi được bởi mọi người nhưng chạy với quyền cao:** ví dụ một script do root chạy định kỳ, nhưng người thường lại sửa được nội dung.
+- **Thông tin nhạy cảm để lộ:** mật khẩu trong file cấu hình, trong lịch sử lệnh, trong biến môi trường.
+- **Phần mềm trong máy có lỗ hổng đã biết:** nhân hệ điều hành hoặc phần mềm cũ có CVE cho phép leo thang.
+
+### Cách tiếp cận có hệ thống
+
+Đừng thử ngẫu nhiên. Hãy liệt kê theo thứ tự, giống như bài 2.2 nhưng lần này là liệt kê từ bên trong máy:
+
+<Checklist
+  client:visible
+  title="Liệt kê để tìm đường leo thang (Linux)"
+  storageKey="privesc-linux"
+  items={[
+    { label: 'Tôi là ai, thuộc nhóm nào', hint: 'whoami, id' },
+    { label: 'Tôi được phép chạy gì với sudo', hint: 'sudo -l' },
+    { label: 'Có file SUID bất thường nào không' },
+    { label: 'Có script hay tác vụ định kỳ nào chạy quyền cao mà tôi can thiệp được không' },
+    { label: 'Có file cấu hình, ghi chú, lịch sử lệnh nào lộ mật khẩu không' },
+    { label: 'Phiên bản nhân hệ điều hành và phần mềm có CVE leo thang không' },
+    { label: 'Có thông tin nào tái sử dụng được cho tài khoản khác không' },
+  ]}
+/>
+
+### Phân biệt hướng đi
+
+<DecisionTree
+  client:visible
+  title="Tìm thấy một manh mối, nên nghĩ theo hướng nào"
+  start="type"
+  nodes={{
+    type: { q: 'Manh mối bạn tìm được thuộc dạng nào?', options: [
+      { label: 'sudo -l cho chạy một lệnh với quyền root', next: 'sudo' },
+      { label: 'Một file SUID lạ', next: 'suid' },
+      { label: 'Một mật khẩu nằm trong file cấu hình', next: 'cred' },
+    ] },
+    sudo: { q: 'Lệnh đó có khả năng chạy lệnh khác hoặc mở shell không (ví dụ trình soạn thảo, công cụ cho chạy lệnh con)?', options: [
+      { label: 'Có', next: 'sudoYes' }, { label: 'Không rõ', next: 'sudoCheck' } ] },
+    sudoYes: { result: 'Nhiều khả năng leo thang được: nếu một lệnh chạy quyền root mà lại cho mở shell hay chạy lệnh con, shell đó sẽ mang quyền root. Hãy ghi lại và kiểm chứng trong lab.', tone: 'good' },
+    sudoCheck: { result: 'Tra xem lệnh cụ thể đó có kỹ thuật "thoát ra shell" đã biết không. Nhiều lệnh tưởng vô hại lại có đường thoát được ghi nhận công khai.', tone: 'warn' },
+    suid: { result: 'Xác định chính xác chương trình và phiên bản, rồi tra xem nó có kỹ thuật lạm dụng SUID đã biết không. Không phải file SUID nào cũng khai thác được.', tone: 'warn' },
+    cred: { result: 'Thử mật khẩu đó cho các tài khoản khác, kể cả root và các dịch vụ. Tái sử dụng mật khẩu là một trong những đường leo thang dễ bị bỏ qua nhất.', tone: 'good' },
+  }}
+/>
+
+## Góc phòng thủ
+
+<Callout type="defense">
+Mỗi dạng cấu hình sai có cách phòng tương ứng: cấp quyền sudo hẹp và cụ thể, không cho chạy các lệnh có đường thoát shell; rà soát và gỡ bit SUID không cần thiết; đảm bảo script chạy quyền cao chỉ root mới sửa được; không lưu mật khẩu trong file cấu hình dạng chữ rõ; và cập nhật nhân hệ điều hành thường xuyên. Tất cả quy về nguyên tắc quyền tối thiểu đã gặp từ bài 1.4.
+</Callout>
+
+## Lỗi người mới hay gặp
+
+- Nhảy vào thử mã khai thác nhân hệ điều hành trước, trong khi đường đi thường đơn giản hơn nhiều (một mật khẩu để lộ).
+- Bỏ qua `sudo -l`, một trong những lệnh đầu tiên nên chạy.
+- Không liệt kê đủ rồi kết luận "máy này không leo thang được".
+
+## Kiểm tra nhanh
+
+<Quiz
+  client:visible
+  questions={[
+    { q: 'Leo thang đặc quyền nhằm mục đích gì?', options: ['Vào được máy từ bên ngoài', 'Từ quyền thấp lên quyền cao hơn trên máy đã vào được', 'Quét cổng nhanh hơn'], answer: 1, explain: 'Nó là bước sau khi đã vào, để có thêm quyền kiểm soát.' },
+    { q: 'Lệnh nào nên chạy sớm để kiểm tra quyền sudo?', options: ['ls -l', 'sudo -l', 'whoami'], answer: 1, explain: 'sudo -l liệt kê những gì bạn được phép chạy với sudo.' },
+    { q: 'Vì sao mật khẩu tìm thấy trong một file cấu hình lại đáng giá?', options: ['Vì nó luôn là mật khẩu root', 'Vì người ta hay dùng lại cùng mật khẩu cho nhiều tài khoản', 'Vì nó không bao giờ hết hạn'], answer: 1, explain: 'Tái sử dụng mật khẩu khiến một mật khẩu lộ có thể mở nhiều tài khoản.' },
+  ]}
+/>
+
+## Ghi nhớ
+
+- Leo thang là đi từ quyền thấp lên root sau khi đã vào được máy.
+- Các dạng phổ biến: sudo quá rộng, SUID sai, script quyền cao sửa được, mật khẩu lộ, phần mềm cũ.
+- Liệt kê có hệ thống; đường đơn giản thường đúng hơn mã khai thác phức tạp.

@@ -1,0 +1,162 @@
+---
+import { render } from 'astro:content';
+import Base from '../../layouts/Base.astro';
+import { getLessons, type Lesson } from '../../lib/lessons';
+import { levels } from '../../data/levels';
+import { url } from '../../lib/url';
+
+export async function getStaticPaths() {
+  const lessons = await getLessons();
+  return lessons.map((lesson, i) => ({
+    params: { slug: lesson.id },
+    props: { lesson, prev: lessons[i - 1] ?? null, next: lessons[i + 1] ?? null, all: lessons },
+  }));
+}
+
+interface Props {
+  lesson: Lesson;
+  prev: Lesson | null;
+  next: Lesson | null;
+  all: Lesson[];
+}
+
+const { lesson, prev, next, all } = Astro.props;
+const { Content } = await render(lesson);
+const d = lesson.data;
+const level = levels.find((l) => l.id === d.level)!;
+---
+<Base title={`${d.code} ${d.title}`} description={d.summary}>
+  <div class="wrap lesson-grid">
+    <aside class="sidebar" aria-label="Danh sách bài">
+      <details open>
+        <summary>Tất cả bài học</summary>
+        {levels.map((lv) => (
+          <div class="side-level">
+            <p class="side-level-name">Cấp {lv.id} · {lv.name}</p>
+            <ul>
+              {all.filter((l) => l.data.level === lv.id).map((l) => (
+                <li>
+                  <a
+                    href={url(`bai/${l.id}`)}
+                    aria-current={l.id === lesson.id ? 'page' : undefined}
+                    data-code={l.data.code}
+                  >
+                    <span class="side-code">{l.data.code}</span> {l.data.title}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ))}
+      </details>
+    </aside>
+
+    <article class="lesson">
+      <p class="crumb"><a href={url('lo-trinh')}>Lộ trình</a> / Cấp {level.id} · {level.name}</p>
+      <h1><span class="code">{d.code}</span> {d.title}</h1>
+      <p class="lead">{d.summary}</p>
+      <p class="meta">Thời lượng gợi ý: {d.duration}{d.status === 'khung' && <span class="badge">Bản khung, đang bổ sung</span>}</p>
+
+      <section class="objectives" aria-label="Mục tiêu bài học">
+        <p class="obj-label">Học xong bài này, bạn sẽ</p>
+        <ul>{d.objectives.map((o) => <li>{o}</li>)}</ul>
+      </section>
+
+      <div class="prose">
+        <Content />
+      </div>
+
+      <div class="done-row">
+        <button class="btn done-btn" type="button" data-code={d.code}>Đánh dấu đã học</button>
+      </div>
+
+      <nav class="pager" aria-label="Chuyển bài">
+        {prev ? (
+          <a class="pager-link" href={url(`bai/${prev.id}`)}>
+            <span>Bài trước</span>{prev.data.code} {prev.data.title}
+          </a>
+        ) : <span />}
+        {next && (
+          <a class="pager-link next" href={url(`bai/${next.id}`)}>
+            <span>Bài tiếp</span>{next.data.code} {next.data.title}
+          </a>
+        )}
+      </nav>
+    </article>
+  </div>
+</Base>
+
+<script is:inline>
+  (function () {
+    function read() {
+      try { return JSON.parse(localStorage.getItem('oscp-done') || '[]'); } catch (e) { return []; }
+    }
+    function write(v) {
+      try { localStorage.setItem('oscp-done', JSON.stringify(v)); } catch (e) {}
+    }
+    const btn = document.querySelector('.done-btn');
+    function paint() {
+      const done = read();
+      document.querySelectorAll('.sidebar a[data-code]').forEach((a) => {
+        a.classList.toggle('is-done', done.includes(a.dataset.code));
+      });
+      if (btn) {
+        const on = done.includes(btn.dataset.code);
+        btn.textContent = on ? 'Đã học xong ✓' : 'Đánh dấu đã học';
+        btn.classList.toggle('primary', on);
+      }
+    }
+    btn?.addEventListener('click', () => {
+      const done = read();
+      const c = btn.dataset.code;
+      write(done.includes(c) ? done.filter((x) => x !== c) : [...done, c]);
+      paint();
+    });
+    paint();
+  })();
+</script>
+
+<style>
+  .lesson-grid { display: grid; grid-template-columns: 270px minmax(0, 1fr); gap: 40px; padding-top: 28px; }
+  .sidebar { font-size: 0.88rem; position: sticky; top: 76px; align-self: start; max-height: calc(100vh - 96px); overflow-y: auto; padding-right: 6px; }
+  .sidebar summary { font-weight: 600; cursor: pointer; margin-bottom: 8px; }
+  .side-level-name { font-weight: 600; color: var(--muted); margin: 14px 0 4px; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.04em; }
+  .sidebar ul { list-style: none; padding: 0; margin: 0; }
+  .sidebar li { margin: 0; }
+  .sidebar a { display: block; padding: 4px 8px; border-radius: 6px; color: var(--text); text-decoration: none; line-height: 1.4; }
+  .sidebar a:hover { background: var(--surface-2); }
+  .sidebar a[aria-current='page'] { background: var(--accent-soft); font-weight: 600; }
+  .sidebar a.is-done .side-code { color: var(--good); }
+  .sidebar a.is-done .side-code::after { content: ' ✓'; }
+  .side-code { font-family: var(--mono); color: var(--muted); font-size: 0.8rem; }
+  .lesson { max-width: 760px; min-width: 0; }
+  .crumb { font-size: 0.85rem; color: var(--muted); margin: 0; }
+  .crumb a { color: var(--muted); }
+  .code { font-family: var(--mono); color: var(--accent); font-size: 0.8em; margin-right: 4px; }
+  .lead { font-size: 1.1rem; color: var(--muted); }
+  .meta { font-size: 0.85rem; color: var(--muted); display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+  .badge { background: var(--warn-soft); color: var(--warn); padding: 1px 8px; border-radius: 99px; font-size: 0.78rem; }
+  .objectives { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px 18px 4px; margin: 20px 0 8px; }
+  .obj-label { font-weight: 600; margin: 0 0 6px; }
+  .done-row { margin: 40px 0 16px; }
+  .pager { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; border-top: 1px solid var(--line); padding-top: 20px; }
+  .pager-link { display: block; border: 1px solid var(--line); border-radius: var(--radius); padding: 10px 14px; text-decoration: none; color: var(--text); font-size: 0.92rem; line-height: 1.4; }
+  .pager-link:hover { border-color: var(--accent); }
+  .pager-link span { display: block; font-size: 0.78rem; color: var(--muted); margin-bottom: 2px; }
+  .pager-link.next { text-align: right; }
+  @media (max-width: 900px) {
+    .lesson-grid { grid-template-columns: 1fr; gap: 12px; }
+    .sidebar { position: static; max-height: none; border: 1px solid var(--line); border-radius: var(--radius); padding: 10px 12px; }
+    .sidebar details:not([open]) { margin: 0; }
+  }
+  @media (max-width: 520px) {
+    .pager { grid-template-columns: 1fr; }
+    .pager-link.next { text-align: left; }
+  }
+</style>
+<script is:inline>
+  // Trên màn hình nhỏ, thu gọn danh sách bài để nội dung lên trước.
+  if (window.matchMedia('(max-width: 900px)').matches) {
+    document.querySelector('.sidebar details')?.removeAttribute('open');
+  }
+</script>

@@ -1,0 +1,78 @@
+---
+title: "Lỗ hổng ứng dụng web (OWASP Top 10)"
+code: "2.3"
+level: 2
+summary: "Vì sao dữ liệu người dùng chưa kiểm tra là gốc rễ của nhiều lỗ hổng web, và cách chặn chúng."
+duration: "80 phút"
+objectives:
+  - "Hiểu nguyên lý chung: dữ liệu không tin cậy bị xử lý như lệnh"
+  - "Nhận ra cơ chế của SQL injection và XSS ở mức khái niệm"
+  - "Biết OWASP Top 10 là gì và dùng để làm gì"
+  - "Nắm cách phòng thủ cốt lõi: tách dữ liệu khỏi lệnh"
+---
+import Callout from '../../components/ui/Callout.astro';
+import QueryDemo from '../../components/sim/QueryDemo.tsx';
+import Quiz from '../../components/sim/Quiz.tsx';
+
+## Hình dung trước
+
+Hãy tưởng tượng một thư ký nhận lệnh qua giấy nhớ. Ai đó viết lên giấy: "Tên khách: Lan. (Ghi chú cho thư ký: sẵn tiện xoá luôn hồ sơ phòng 3.)" Nếu thư ký không phân biệt được đâu là dữ liệu, đâu là lệnh, họ sẽ xoá nhầm hồ sơ. Rất nhiều lỗ hổng web là đúng tình huống này: chương trình nhầm dữ liệu người dùng thành lệnh.
+
+## Kiến thức chính
+
+### OWASP Top 10
+
+OWASP Top 10 là danh sách 10 loại rủi ro web phổ biến nhất, được cập nhật định kỳ. Nó không phải danh sách lỗi cụ thể mà là các nhóm chủ đề, ví dụ: kiểm soát truy cập hỏng, lỗi tiêm (injection), cấu hình sai. Người mới nên xem nó như bản đồ để biết nên học gì.
+
+### Nguyên lý chung của lỗi tiêm
+
+Phần lớn lỗi nguy hiểm có chung một gốc: **dữ liệu do người dùng nhập bị trộn lẫn vào một câu lệnh, rồi được xử lý như một phần của câu lệnh đó.** Câu lệnh có thể là truy vấn cơ sở dữ liệu (SQL injection), lệnh hệ điều hành (command injection), hoặc mã chạy trong trình duyệt người khác (XSS).
+
+### SQL injection: thấy tận mắt
+
+Mô phỏng dưới đây cho thấy chuyện gì xảy ra khi ghép thẳng dữ liệu người dùng vào câu truy vấn. Thử gõ một cái tên bình thường, rồi thử tên có dấu nháy như `O'Neil`, và so sánh hai tab:
+
+<QueryDemo client:visible />
+
+Điểm mấu chốt: khi nối chuỗi, dấu nháy trong dữ liệu có thể "thoát ra" và đổi cấu trúc câu lệnh. Khi dùng truy vấn tham số hoá, dữ liệu và lệnh đi riêng, nên dù người dùng gõ gì nó cũng chỉ là một giá trị.
+
+### XSS: tiêm vào trình duyệt người khác
+
+Cùng một nguyên lý, nhưng ở phía trình duyệt. Nếu một website nhận bình luận của người dùng rồi hiển thị lại nguyên văn mà không xử lý, kẻ tấn công có thể nhét đoạn mã vào bình luận. Khi người khác mở trang, đoạn mã đó chạy trong trình duyệt của họ, với danh nghĩa của họ.
+
+### Mẫu chung để phòng thủ
+
+Mọi lỗi tiêm đều chống bằng cùng một ý tưởng: **đừng để dữ liệu người dùng được hiểu là lệnh.**
+
+- Với cơ sở dữ liệu: dùng truy vấn tham số hoá.
+- Với hiển thị ra HTML: mã hoá ký tự đặc biệt trước khi in (escape).
+- Với mọi đầu vào: kiểm tra tính hợp lệ (validation), chỉ nhận đúng dạng mong đợi.
+
+## Góc phòng thủ
+
+<Callout type="defense">
+Lập trình viên không nên tự "lọc dấu nháy" bằng tay, vì rất dễ sót. Cách đúng là dùng cơ chế có sẵn của thư viện: truy vấn tham số hoá cho SQL, hàm escape của framework cho HTML. Ngoài ra, nguyên tắc quyền tối thiểu vẫn áp dụng: tài khoản mà website dùng để nối vào cơ sở dữ liệu chỉ nên có đúng quyền cần thiết, để nếu có bị khai thác thì thiệt hại cũng bị giới hạn.
+</Callout>
+
+## Lỗi người mới hay gặp
+
+- Nghĩ chỉ ô đăng nhập mới bị tiêm. Mọi đầu vào đều đáng ngờ: ô tìm kiếm, tham số trên URL, header, cookie.
+- Tin rằng lọc từ khoá là đủ. Danh sách chặn gần như luôn có kẽ hở; tách dữ liệu khỏi lệnh mới là giải pháp gốc.
+- Chỉ kiểm tra ở trình duyệt (phía client). Kẻ tấn công bỏ qua trình duyệt, nên kiểm tra bắt buộc phải làm ở máy chủ.
+
+## Kiểm tra nhanh
+
+<Quiz
+  client:visible
+  questions={[
+    { q: 'Gốc rễ chung của các lỗi tiêm (injection) là gì?', options: ['Mật khẩu yếu', 'Dữ liệu người dùng bị xử lý như một phần của lệnh', 'Mạng chậm'], answer: 1, explain: 'Khi dữ liệu và lệnh không được tách bạch, dữ liệu có thể đổi ý nghĩa của lệnh.' },
+    { q: 'Cách phòng SQL injection tốt nhất là gì?', options: ['Cấm người dùng gõ dấu nháy', 'Dùng truy vấn tham số hoá', 'Ẩn ô tìm kiếm'], answer: 1, explain: 'Truy vấn tham số hoá tách dữ liệu khỏi câu lệnh một cách triệt để.' },
+    { q: 'Kiểm tra đầu vào chỉ ở trình duyệt có đủ không?', options: ['Đủ', 'Không, phải kiểm tra ở máy chủ vì kẻ tấn công bỏ qua trình duyệt', 'Tuỳ website'], answer: 1, explain: 'Kẻ tấn công gửi dữ liệu thẳng tới máy chủ, nên kiểm tra ở máy chủ là bắt buộc.' },
+  ]}
+/>
+
+## Ghi nhớ
+
+- OWASP Top 10 là bản đồ các rủi ro web phổ biến.
+- Lỗi tiêm xảy ra khi dữ liệu người dùng bị hiểu thành lệnh.
+- Phòng thủ gốc: tách dữ liệu khỏi lệnh, kiểm tra đầu vào ở máy chủ.

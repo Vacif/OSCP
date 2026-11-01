@@ -1,0 +1,80 @@
+---
+title: "Chiến lược thi OSCP"
+code: "4.2"
+level: 4
+summary: "Kỳ thi kéo dài, áp lực cao. Quản lý thời gian, năng lượng và tâm lý quan trọng ngang kỹ thuật."
+duration: "40 phút"
+objectives:
+  - "Hiểu hình thức và yêu cầu chung của kỳ thi OSCP"
+  - "Có chiến lược phân bổ thời gian hợp lý"
+  - "Biết cách xử lý khi bế tắc"
+  - "Chuẩn bị tâm lý và thể chất cho kỳ thi dài"
+---
+import Callout from '../../components/ui/Callout.astro';
+import Quiz from '../../components/sim/Quiz.tsx';
+
+## Hình dung trước
+
+OSCP giống chạy marathon hơn chạy nước rút. Người về đích không phải người chạy nhanh nhất lúc đầu, mà người giữ được sức, không hoảng khi mệt, và biết lúc nào nên đi bộ lấy lại hơi. Kỹ thuật đưa bạn tới vạch xuất phát; chiến lược đưa bạn về đích.
+
+> Bài này nói về chiến lược chung. Thể lệ, điểm số và cấu trúc cụ thể của kỳ thi do OffSec quy định và thay đổi theo thời gian, nên trước khi thi hãy đọc hướng dẫn chính thức mới nhất của họ.
+
+## Kiến thức chính
+
+### Hình thức chung
+
+OSCP là kỳ thi thực hành dài, kéo dài gần một ngày liên tục, trong đó bạn tấn công các máy trong một mạng lab và phải đạt một ngưỡng điểm. Sau phần thực hành là thời gian viết và nộp báo cáo (bài 4.1). Điểm đến từ việc chứng minh đã chiếm được máy, kèm bằng chứng trong báo cáo.
+
+### Phân bổ thời gian
+
+- **Chia thời gian theo máy, và tôn trọng giới hạn đó.** Đặt mốc: nếu sau một khoảng thời gian định trước mà một máy chưa có tiến triển, chuyển sang máy khác rồi quay lại sau.
+- **Ghi chép liên tục**, không để tới cuối. Mỗi lần chiếm được gì, chụp màn hình ngay.
+- **Dành đủ thời gian cuối cho báo cáo.** Nhiều người làm được bài nhưng trượt vì báo cáo vội vàng, thiếu bằng chứng.
+
+### Khi bế tắc
+
+- Quay lại liệt kê (bài 0.3 và 2.2). Phần lớn bế tắc là do bỏ sót, không phải thiếu kỹ thuật cao.
+- Đọc lại ghi chú "đã thử" để khỏi lặp lại.
+- Nghỉ ngắn. Rời màn hình vài phút thường hiệu quả hơn là nhìn chằm chằm thêm một giờ.
+- Kiểm tra lại những điều cơ bản: đúng địa chỉ IP chưa, dịch vụ còn chạy không, mình có đang quên một cổng nào không.
+
+### Tâm lý và thể chất
+
+- **Ngủ đủ trước ngày thi** quan trọng hơn ôn thêm một kỹ thuật vào đêm cuối.
+- **Chuẩn bị đồ ăn, nước** để không phải rời bàn lâu.
+- **Chấp nhận cảm giác bế tắc là bình thường.** Gần như ai cũng có lúc thấy "chịu rồi"; người qua được là người giữ bình tĩnh và quay lại quy trình.
+
+<Callout type="note">
+Mọi thói quen trong bài này đều nên tập từ lúc luyện lab (bài 4.3), không phải đợi tới hôm thi. Thi chỉ là ngày bạn làm lại những gì đã thành phản xạ.
+</Callout>
+
+## Góc phòng thủ
+
+<Callout type="defense">
+Kỷ luật ghi chép và quy trình có hệ thống không chỉ để thi. Trong công việc phòng thủ hay ứng cứu sự cố thật, chính sự bình tĩnh và ghi chép đầy đủ dưới áp lực mới tạo ra khác biệt giữa xử lý tốt và làm mọi thứ tệ hơn.
+</Callout>
+
+## Lỗi người mới hay gặp
+
+- Bám một máy quá lâu vì tiếc công, bỏ lỡ các máy dễ hơn.
+- Để báo cáo tới phút chót rồi không kịp dựng lại bằng chứng.
+- Thức trắng ôn đêm cuối, vào thi đầu óc không tỉnh táo.
+- Hoảng khi bế tắc và bỏ quy trình, quét loạn xạ thay vì liệt kê bài bản.
+
+## Kiểm tra nhanh
+
+<Quiz
+  client:visible
+  questions={[
+    { q: 'Khi một máy làm bạn mất quá nhiều thời gian mà không tiến triển, nên làm gì?', options: ['Cố thêm tới khi xong', 'Chuyển sang máy khác và quay lại sau', 'Bỏ thi'], answer: 1, explain: 'Đặt giới hạn thời gian cho mỗi máy giúp bạn không mắc kẹt và bỏ lỡ điểm dễ hơn ở máy khác.' },
+    { q: 'Vì sao cần dành thời gian riêng cho báo cáo?', options: ['Vì báo cáo không quan trọng', 'Vì điểm phụ thuộc vào bằng chứng trong báo cáo, làm vội dễ trượt', 'Vì báo cáo tự viết'], answer: 1, explain: 'Chiếm được máy mà không chứng minh được trong báo cáo thì có thể không được tính.' },
+    { q: 'Cách xử lý bế tắc hiệu quả nhất thường là gì?', options: ['Đổi sang công cụ mạnh hơn', 'Quay lại liệt kê và nghỉ ngắn', 'Thử ngẫu nhiên nhiều cách'], answer: 1, explain: 'Bế tắc thường do bỏ sót thông tin; liệt kê lại và nghỉ ngắn hiệu quả hơn thử mò.' },
+  ]}
+/>
+
+## Ghi nhớ
+
+- OSCP là cuộc đua đường dài: quản lý thời gian, năng lượng và tâm lý.
+- Đặt giới hạn thời gian cho mỗi máy; ghi chép và chụp bằng chứng liên tục.
+- Bế tắc thì quay lại liệt kê và nghỉ ngắn; ngủ đủ quan trọng hơn ôn đêm cuối.
+- Luôn đọc thể lệ chính thức mới nhất của OffSec trước khi thi.

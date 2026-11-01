@@ -1,0 +1,118 @@
+---
+title: "Dựng lab an toàn"
+code: "0.2"
+level: 0
+summary: "Một chiếc máy tính, vài máy ảo và một mạng tách biệt là đủ để học hết lộ trình này."
+duration: "60 phút"
+objectives:
+  - "Hiểu máy ảo là gì và vì sao nên học trên máy ảo"
+  - "Chọn được kiểu mạng ảo phù hợp cho lab"
+  - "Biết dùng snapshot để quay lại trạng thái trước khi hỏng"
+  - "Dựng được lab gồm một máy tấn công và ít nhất một máy mục tiêu"
+---
+import Callout from '../../components/ui/Callout.astro';
+import ConceptMap from '../../components/sim/ConceptMap.tsx';
+import Checklist from '../../components/sim/Checklist.tsx';
+import Quiz from '../../components/sim/Quiz.tsx';
+
+## Hình dung trước
+
+Học lái xe thì ra sân tập, không ra đường quốc lộ. Lab cũng là sân tập: một khu riêng, có làm hỏng gì thì chỉ hỏng trong đó, xoá đi làm lại trong vài phút.
+
+## Kiến thức chính
+
+### Máy ảo
+
+Máy ảo (virtual machine) là một chiếc máy tính giả chạy bên trong máy thật. Phần mềm quản lý máy ảo gọi là *hypervisor*, ví dụ VirtualBox (miễn phí) hoặc VMware Workstation. Máy thật gọi là *host*, máy ảo gọi là *guest*.
+
+Cấu hình tối thiểu nên có: RAM 8 GB (16 GB thì thoải mái hơn), ổ cứng trống 80 GB, CPU hỗ trợ ảo hoá và đã bật trong BIOS.
+
+### Máy tấn công và máy mục tiêu
+
+- **Máy tấn công:** thường là Kali Linux, một bản Linux cài sẵn nhiều công cụ kiểm thử. OffSec, đơn vị tổ chức thi OSCP, cũng là đơn vị phát triển Kali.
+- **Máy mục tiêu:** máy cố tình để lỗi, dùng để luyện tập. Có nhiều máy loại này được chia sẻ công khai cho mục đích học.
+
+### Chọn kiểu mạng ảo
+
+| Kiểu mạng | Máy ảo ra Internet? | Máy khác trong mạng nhà thấy máy ảo? | Dùng khi |
+|---|---|---|---|
+| NAT | Có | Không | Cần cập nhật, tải phần mềm cho máy tấn công |
+| Host-only / Internal | Không | Không | Chạy máy mục tiêu cố tình để lỗi |
+| Bridged | Có | Có | Hạn chế dùng cho lab, vì máy lỗi sẽ lộ ra mạng nhà |
+
+Nguyên tắc: máy mục tiêu luôn nằm trong mạng cô lập.
+
+### Snapshot
+
+Snapshot là ảnh chụp trạng thái máy ảo tại một thời điểm. Trước khi thử nghiệm, chụp một snapshot. Làm hỏng thì quay lại snapshot, mất vài giây thay vì cài lại từ đầu.
+
+## Sơ đồ: lab của bạn trông thế nào
+
+<ConceptMap
+  client:visible
+  title="Lab tối thiểu"
+  width={640}
+  height={330}
+  zones={[
+    { label: 'Máy tính thật (host)', x: 10, y: 10, w: 620, h: 310 },
+    { label: 'Mạng ảo cô lập', x: 220, y: 150, w: 400, h: 160 },
+  ]}
+  nodes={[
+    { id: 'hv', label: 'Hypervisor', sub: 'VirtualBox / VMware', x: 110, y: 90, detail: 'Phần mềm tạo và chạy các máy ảo. Nó cũng tạo ra các mạng ảo để máy ảo nói chuyện với nhau.' },
+    { id: 'net', label: 'Internet', x: 520, y: 70, tone: 'muted', detail: 'Chỉ máy tấn công được ra Internet (qua NAT) để cập nhật. Máy mục tiêu không có đường ra.' },
+    { id: 'kali', label: 'Máy tấn công', sub: 'Kali Linux', x: 320, y: 230, tone: 'accent', detail: 'Có hai card mạng: một card NAT để ra Internet, một card nối vào mạng cô lập để làm bài.' },
+    { id: 't1', label: 'Mục tiêu 1', sub: 'Linux có lỗi', x: 520, y: 200, tone: 'warn', detail: 'Máy cố tình để lỗi. Chỉ nối vào mạng cô lập, không bao giờ để Bridged.' },
+    { id: 't2', label: 'Mục tiêu 2', sub: 'Windows có lỗi', x: 520, y: 275, tone: 'warn', detail: 'Máy Windows dùng cho các bài về Windows và Active Directory ở Cấp 3.' },
+  ]}
+  edges={[
+    { from: 'hv', to: 'kali' },
+    { from: 'kali', to: 'net', label: 'NAT', dashed: true },
+    { from: 'kali', to: 't1' },
+    { from: 'kali', to: 't2' },
+  ]}
+/>
+
+<Checklist
+  client:visible
+  title="Việc cần làm để dựng lab"
+  storageKey="lab-setup"
+  items={[
+    { label: 'Bật ảo hoá (VT-x / AMD-V) trong BIOS', hint: 'Nếu máy ảo báo lỗi không khởi động được, thường là do chưa bật.' },
+    { label: 'Cài VirtualBox hoặc VMware' },
+    { label: 'Tải Kali Linux từ trang chính thức và kiểm tra checksum' },
+    { label: 'Tạo một mạng Host-only hoặc Internal' },
+    { label: 'Cài máy tấn công với 2 card mạng: NAT và mạng cô lập' },
+    { label: 'Cài ít nhất một máy mục tiêu, chỉ nối vào mạng cô lập' },
+    { label: 'Chụp snapshot cho mọi máy sau khi cài xong' },
+    { label: 'Từ máy tấn công, kiểm tra thấy được máy mục tiêu', hint: 'Bài 1.1 sẽ giải thích chi tiết địa chỉ IP.' },
+  ]}
+/>
+
+## Góc phòng thủ
+
+<Callout type="defense">
+Máy mục tiêu được thiết kế để có lỗ hổng. Nếu để nó ở chế độ Bridged, bất kỳ ai trong mạng nhà bạn, kể cả thiết bị đã bị nhiễm mã độc, cũng có thể tấn công nó. Cô lập mạng là biện pháp phòng thủ đầu tiên bạn tự áp dụng cho chính mình.
+</Callout>
+
+## Lỗi người mới hay gặp
+
+- Tải file máy ảo từ nguồn lạ. Chỉ tải từ trang chính thức và kiểm tra mã checksum.
+- Không chụp snapshot, rồi mất cả buổi cài lại khi lỡ tay làm hỏng.
+- Cấp quá ít RAM cho máy tấn công, máy chạy chậm rồi tưởng là lỗi công cụ.
+
+## Kiểm tra nhanh
+
+<Quiz
+  client:visible
+  questions={[
+    { q: 'Máy mục tiêu cố tình để lỗi nên dùng kiểu mạng nào?', options: ['Bridged', 'Host-only hoặc Internal', 'Kiểu nào cũng được'], answer: 1, explain: 'Mạng cô lập giữ máy lỗi tránh xa mạng thật của bạn.' },
+    { q: 'Snapshot dùng để làm gì?', options: ['Chụp màn hình máy ảo', 'Lưu trạng thái máy ảo để quay lại sau', 'Tăng tốc máy ảo'], answer: 1, explain: 'Snapshot cho phép quay lại đúng trạng thái lúc chụp.' },
+    { q: 'Máy thật đang chạy hypervisor gọi là gì?', options: ['Guest', 'Host', 'Server'], answer: 1, explain: 'Máy thật là host, máy ảo chạy bên trong là guest.' },
+  ]}
+/>
+
+## Ghi nhớ
+
+- Lab = hypervisor + máy tấn công + máy mục tiêu + mạng cô lập.
+- Máy mục tiêu không bao giờ để Bridged.
+- Chụp snapshot trước khi thử bất cứ thứ gì.

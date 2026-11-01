@@ -1,0 +1,95 @@
+---
+title: "TCP, UDP và bắt tay ba bước"
+code: "1.2"
+level: 1
+summary: "Hai cách gửi dữ liệu: một cách cẩn thận có xác nhận, một cách nhanh gọn không kiểm tra."
+duration: "50 phút"
+objectives:
+  - "Phân biệt TCP và UDP, biết khi nào dùng cái nào"
+  - "Mô tả được bắt tay ba bước của TCP"
+  - "Hiểu số cổng (port) dùng để làm gì"
+  - "Liên hệ các trạng thái cổng với kết quả quét ở bài 2.2"
+---
+import Callout from '../../components/ui/Callout.astro';
+import SequenceDiagram from '../../components/sim/SequenceDiagram.tsx';
+import Quiz from '../../components/sim/Quiz.tsx';
+
+## Hình dung trước
+
+Gửi hàng có hai kiểu. Kiểu chuyển phát có ký nhận: người gửi biết chắc hàng đã tới, thiếu thì gửi lại. Kiểu thả tờ rơi vào hòm thư: nhanh, rẻ, nhưng không ai xác nhận. TCP là kiểu thứ nhất, UDP là kiểu thứ hai.
+
+## Kiến thức chính
+
+### Cổng (port)
+
+Một máy chạy nhiều dịch vụ cùng lúc: web, email, cơ sở dữ liệu. Số cổng cho biết dữ liệu dành cho dịch vụ nào. Vài cổng quen thuộc:
+
+| Cổng | Dịch vụ |
+|---|---|
+| 22 | SSH (đăng nhập từ xa) |
+| 80 | HTTP (web) |
+| 443 | HTTPS (web có mã hoá) |
+| 53 | DNS |
+| 445 | SMB (chia sẻ file Windows) |
+| 3389 | RDP (màn hình từ xa Windows) |
+
+Địa chỉ IP đưa dữ liệu tới đúng máy; số cổng đưa tới đúng dịch vụ trên máy đó.
+
+### TCP và UDP
+
+| | TCP | UDP |
+|---|---|---|
+| Có xác nhận nhận được? | Có | Không |
+| Thứ tự dữ liệu được đảm bảo? | Có | Không |
+| Tốc độ | Chậm hơn | Nhanh hơn |
+| Hợp với | Web, email, tải file | Gọi video, DNS, game |
+
+### Bắt tay ba bước
+
+Trước khi gửi dữ liệu, TCP thiết lập kết nối bằng ba bước trao đổi. Bấm "Tiếp" để xem từng bước:
+
+<SequenceDiagram
+  client:visible
+  title="Bắt tay ba bước của TCP"
+  actors={['Máy khách', 'Máy chủ']}
+  steps={[
+    { from: 0, to: 1, label: 'SYN', note: 'Máy khách gửi SYN: "Tôi muốn mở kết nối, số thứ tự của tôi bắt đầu từ x."' },
+    { from: 1, to: 0, label: 'SYN + ACK', note: 'Máy chủ trả lời: "Nhận được. Số của tôi bắt đầu từ y, và tôi xác nhận số x của bạn." Việc máy chủ trả lời nghĩa là cổng này đang mở.', tone: 'good' },
+    { from: 0, to: 1, label: 'ACK', note: 'Máy khách xác nhận số y. Kết nối đã sẵn sàng, hai bên bắt đầu truyền dữ liệu thật.', tone: 'good' },
+  ]}
+/>
+
+Hiểu bước này rất có ích: khi quét cổng ở bài 2.2, công cụ thực chất đang thử gửi SYN và xem máy chủ phản ứng ra sao.
+
+- Trả lời SYN+ACK → cổng **mở**.
+- Trả lời từ chối (RST) → cổng **đóng**.
+- Không trả lời gì → thường là bị firewall **lọc**.
+
+## Góc phòng thủ
+
+<Callout type="defense">
+Firewall kiểm soát việc bắt tay này. Nó có thể lặng lẽ bỏ qua gói SYN tới những cổng không mở cho bên ngoài, khiến kẻ tấn công không biết chắc cổng đóng hay chỉ bị chặn. Đây là lý do một bản quét mạng từ ngoài vào thường cho kết quả khác với quét từ trong mạng nội bộ.
+</Callout>
+
+## Lỗi người mới hay gặp
+
+- Nghĩ UDP "kém hơn" TCP. Mỗi loại hợp với một nhu cầu khác nhau.
+- Quên rằng một số dịch vụ chạy trên cổng không chuẩn. Đừng đoán dịch vụ chỉ bằng số cổng, hãy xác minh.
+- Bỏ qua UDP khi quét. Nhiều dịch vụ quan trọng như DNS chạy trên UDP.
+
+## Kiểm tra nhanh
+
+<Quiz
+  client:visible
+  questions={[
+    { q: 'Trong bắt tay ba bước, gói nào cho biết cổng đang mở?', options: ['SYN từ máy khách', 'SYN+ACK từ máy chủ', 'Không gói nào'], answer: 1, explain: 'Máy chủ chỉ trả lời SYN+ACK khi có dịch vụ đang lắng nghe ở cổng đó.' },
+    { q: 'Gọi video trực tuyến thường dùng giao thức nào, vì sao?', options: ['TCP, vì cần chính xác tuyệt đối', 'UDP, vì cần nhanh và chấp nhận mất vài khung hình', 'Cả hai đều không'], answer: 1, explain: 'Gọi video ưu tiên tốc độ; mất vài khung hình không sao nên dùng UDP.' },
+    { q: 'Bạn quét một cổng và không nhận được phản hồi nào. Khả năng cao nhất là gì?', options: ['Cổng chắc chắn đóng', 'Cổng có thể bị firewall lọc', 'Máy đã tắt'], answer: 1, explain: 'Im lặng thường là dấu hiệu bị lọc; cổng đóng thường trả về RST.' },
+  ]}
+/>
+
+## Ghi nhớ
+
+- Cổng đưa dữ liệu tới đúng dịch vụ; IP đưa tới đúng máy.
+- TCP cẩn thận, có xác nhận; UDP nhanh, không xác nhận.
+- Bắt tay SYN → SYN+ACK → ACK; phản ứng của máy chủ cho biết cổng mở, đóng hay bị lọc.

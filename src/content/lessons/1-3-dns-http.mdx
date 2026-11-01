@@ -1,0 +1,102 @@
+---
+title: "DNS, HTTP và các giao thức phổ biến"
+code: "1.3"
+level: 1
+summary: "Tên miền biến thành địa chỉ IP ra sao, và một yêu cầu web gồm những gì."
+duration: "55 phút"
+objectives:
+  - "Mô tả quá trình phân giải tên miền qua DNS"
+  - "Đọc hiểu một yêu cầu và phản hồi HTTP"
+  - "Nhận ra các phần quan trọng: phương thức, mã trạng thái, header"
+  - "Hiểu HTTPS thêm gì so với HTTP"
+---
+import Callout from '../../components/ui/Callout.astro';
+import SequenceDiagram from '../../components/sim/SequenceDiagram.tsx';
+import Quiz from '../../components/sim/Quiz.tsx';
+
+## Hình dung trước
+
+Bạn biết tên một người nhưng không nhớ số điện thoại, nên tra danh bạ. DNS chính là cuốn danh bạ của Internet: bạn đưa tên miền, nó trả về địa chỉ IP.
+
+## Kiến thức chính
+
+### DNS phân giải tên miền
+
+Máy tính nói chuyện bằng địa chỉ IP, còn con người nhớ tên miền. DNS làm cầu nối. Khi bạn gõ một tên miền, máy sẽ đi hỏi qua nhiều cấp máy chủ DNS:
+
+<SequenceDiagram
+  client:visible
+  title="Phân giải tên miền truong-hoc.vn"
+  actors={['Máy của bạn', 'DNS trung gian', 'Máy chủ gốc']}
+  steps={[
+    { from: 0, to: 1, label: 'truong-hoc.vn ?', note: 'Máy bạn hỏi máy chủ DNS trung gian (thường của nhà mạng): "truong-hoc.vn có IP là gì?"' },
+    { from: 1, to: 2, label: 'hỏi tiếp', note: 'Nếu chưa biết, DNS trung gian hỏi lên các máy chủ cấp cao hơn để tìm ra máy chủ phụ trách tên miền này.', tone: 'muted' },
+    { from: 2, to: 1, label: '203.0.113.8', note: 'Máy chủ phụ trách trả về địa chỉ IP thật của truong-hoc.vn.' },
+    { from: 1, to: 0, label: '203.0.113.8', note: 'DNS trung gian trả kết quả cho máy bạn và nhớ lại (cache) để lần sau trả lời nhanh hơn.', tone: 'good' },
+  ]}
+/>
+
+Với pentester, DNS là nguồn thông tin quý: các tên miền con (subdomain) như `mail.`, `vpn.`, `test.` có thể để lộ những hệ thống ít được để ý.
+
+### HTTP: ngôn ngữ của web
+
+Một yêu cầu HTTP gồm phương thức, đường dẫn và các header. Phản hồi gồm mã trạng thái và nội dung.
+
+```http
+GET /tin-tuc HTTP/1.1
+Host: truong-hoc.vn
+User-Agent: Mozilla/5.0
+```
+
+```http
+HTTP/1.1 200 OK
+Content-Type: text/html; charset=utf-8
+
+<!doctype html> ...
+```
+
+**Phương thức** thường gặp: `GET` (lấy dữ liệu), `POST` (gửi dữ liệu, ví dụ đăng nhập).
+
+**Mã trạng thái** theo nhóm:
+
+| Nhóm | Nghĩa | Ví dụ |
+|---|---|---|
+| 2xx | Thành công | 200 OK |
+| 3xx | Chuyển hướng | 301, 302 |
+| 4xx | Lỗi phía người gửi | 403 cấm, 404 không thấy |
+| 5xx | Lỗi phía máy chủ | 500 |
+
+Khi dò tìm ở bài 2.3, bạn sẽ đọc rất nhiều mã trạng thái: 403 và 401 gợi ý "có thứ gì đó ở đây nhưng bị chặn", 200 ở một đường dẫn bất ngờ là điều đáng chú ý.
+
+### HTTPS
+
+HTTPS là HTTP chạy bên trong một lớp mã hoá TLS. Nó đảm bảo hai điều: nội dung không bị đọc trộm trên đường đi, và bạn đang nói chuyện đúng với máy chủ bạn nghĩ (qua chứng chỉ). HTTPS **không** làm cho website hết lỗ hổng; nó chỉ bảo vệ dữ liệu trên đường truyền.
+
+## Góc phòng thủ
+
+<Callout type="defense">
+Header phản hồi có thể vô tình để lộ thông tin: `Server: Apache/2.4.29` nói luôn phần mềm và phiên bản, giúp kẻ tấn công tra lỗ hổng đã biết. Quản trị viên nên ẩn bớt các header này. Ngược lại, một số header lại tăng an toàn, như `Content-Security-Policy` hạn chế mã lạ chạy trong trang.
+</Callout>
+
+## Lỗi người mới hay gặp
+
+- Tưởng HTTPS nghĩa là website an toàn tuyệt đối. Nó chỉ bảo vệ đường truyền.
+- Bỏ qua các tên miền con. Chúng thường là nơi có hệ thống cũ, ít vá lỗi.
+- Không đọc kỹ mã trạng thái, bỏ lỡ manh mối từ 401, 403.
+
+## Kiểm tra nhanh
+
+<Quiz
+  client:visible
+  questions={[
+    { q: 'DNS trả về cái gì khi bạn hỏi một tên miền?', options: ['Nội dung trang web', 'Địa chỉ IP tương ứng', 'Mật khẩu quản trị'], answer: 1, explain: 'DNS ánh xạ tên miền sang địa chỉ IP.' },
+    { q: 'Mã trạng thái 403 nghĩa là gì?', options: ['Không tìm thấy trang', 'Bị cấm truy cập', 'Máy chủ lỗi'], answer: 1, explain: '403 Forbidden: tài nguyên tồn tại nhưng bạn không được phép xem. 404 mới là không tìm thấy.' },
+    { q: 'HTTPS bảo vệ điều gì?', options: ['Làm website hết lỗ hổng', 'Mã hoá dữ liệu trên đường truyền và xác thực máy chủ', 'Tăng tốc website'], answer: 1, explain: 'HTTPS lo phần đường truyền và danh tính máy chủ, không lo lỗ hổng trong ứng dụng.' },
+  ]}
+/>
+
+## Ghi nhớ
+
+- DNS đổi tên miền thành IP, qua nhiều cấp máy chủ, có cache.
+- HTTP gồm phương thức, đường dẫn, header; phản hồi có mã trạng thái.
+- HTTPS = HTTP + mã hoá TLS, bảo vệ đường truyền chứ không bảo vệ ứng dụng.

@@ -1,0 +1,53 @@
+---
+import Base from '../layouts/Base.astro';
+import { url } from '../lib/url';
+---
+<Base title="Quy tắc" description="Quy tắc đạo đức và pháp lý khi học bảo mật.">
+  <div class="wrap page">
+    <h1>Quy tắc khi học</h1>
+    <p class="lead">Đọc một lần trước khi vào bài. Phần này ngắn nhưng quan trọng nhất.</p>
+
+    <h2>1. Chỉ thử trên thứ bạn được phép</h2>
+    <p>
+      Được phép nghĩa là: máy ảo trong lab của bạn, nền tảng luyện tập cho phép người dùng tấn công máy của họ,
+      hoặc hệ thống mà chủ sở hữu đã đồng ý bằng văn bản, có ghi rõ phạm vi và thời gian.
+    </p>
+    <p>
+      Không được phép: website của trường, công ty, quán cà phê, wifi hàng xóm, tài khoản bạn bè,
+      kể cả khi bạn "chỉ quét thử" hay "không phá gì".
+    </p>
+
+    <h2>2. Luật pháp</h2>
+    <p>
+      Ở Việt Nam, xâm nhập trái phép vào mạng máy tính hoặc phương tiện điện tử của người khác có thể bị xử lý
+      theo Bộ luật Hình sự (Điều 289) và Luật An ninh mạng. Nhiều nước khác có luật tương tự.
+      Không biết luật không phải là lý do để được miễn trách nhiệm.
+    </p>
+
+    <h2>3. Phát hiện lỗ hổng thật thì làm gì</h2>
+    <p>
+      Nếu tình cờ thấy lỗ hổng ở một hệ thống thật, đừng khai thác tiếp để "chứng minh".
+      Tìm kênh tiếp nhận báo cáo của tổ chức đó (trang bảo mật, chương trình bug bounty, email security),
+      mô tả ngắn gọn điều bạn thấy và chờ họ phản hồi.
+    </p>
+
+    <h2>4. Mô phỏng trên trang này</h2>
+    <p>
+      Mọi mô phỏng chạy hoàn toàn trong trình duyệt của bạn, với dữ liệu giả. Không có gì được gửi đi đâu,
+      không kết nối tới máy nào. Mục đích là để bạn thấy cơ chế, không phải để dùng làm công cụ.
+    </p>
+
+    <h2>5. Học để bảo vệ</h2>
+    <p>
+      Bài nào cũng có phần "Góc phòng thủ". Hiểu cách tấn công mà không biết cách phát hiện và khắc phục
+      thì mới được một nửa, và cũng không đủ để viết báo cáo pentest tử tế.
+    </p>
+
+    <p><a class="btn primary" href={url('lo-trinh')}>Tôi đã hiểu, vào lộ trình</a></p>
+  </div>
+</Base>
+
+<style>
+  .page { max-width: 760px; padding-top: 28px; }
+  .lead { color: var(--muted); font-size: 1.1rem; }
+</style>

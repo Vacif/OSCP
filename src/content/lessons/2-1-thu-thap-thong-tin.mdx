@@ -1,0 +1,93 @@
+---
+title: "Thu thập thông tin thụ động"
+code: "2.1"
+level: 2
+summary: "Tìm hiểu mục tiêu bằng thông tin công khai, trước khi gửi một gói tin nào tới họ."
+duration: "55 phút"
+objectives:
+  - "Phân biệt thu thập thụ động và chủ động"
+  - "Kể tên các nguồn thông tin công khai hữu ích"
+  - "Hiểu vì sao thông tin tưởng vô hại lại có giá trị khi ghép lại"
+  - "Nhận ra ranh giới pháp lý của thu thập thông tin"
+---
+import Callout from '../../components/ui/Callout.astro';
+import ConceptMap from '../../components/sim/ConceptMap.tsx';
+import Quiz from '../../components/sim/Quiz.tsx';
+
+## Hình dung trước
+
+Trước khi gặp một người lần đầu, nhiều người sẽ tìm tên họ trên mạng. Không có gì mờ ám, chỉ là đọc những gì đã công khai. Thu thập thông tin thụ động trong pentest cũng vậy: gom những gì ai cũng xem được, mà không hề chạm vào hệ thống mục tiêu.
+
+## Kiến thức chính
+
+### Thụ động và chủ động
+
+- **Thụ động:** lấy thông tin từ nguồn bên thứ ba (công cụ tìm kiếm, dữ liệu tên miền công khai). Mục tiêu không hề biết.
+- **Chủ động:** trực tiếp gửi dữ liệu tới hệ thống mục tiêu (quét cổng). Để lại dấu vết, và cần nằm trong phạm vi cho phép.
+
+Bài này nói về thụ động. Chủ động bắt đầu từ bài 2.2.
+
+### Các nguồn công khai
+
+- **WHOIS và dữ liệu tên miền:** ai đăng ký tên miền, từ khi nào, máy chủ DNS nào.
+- **Chứng chỉ TLS công khai:** các nhật ký chứng chỉ ghi lại tên miền từng được cấp chứng chỉ, để lộ nhiều subdomain.
+- **Công cụ tìm kiếm:** dùng toán tử tìm kiếm để lọc ra file hoặc trang mà tổ chức vô tình để công khai.
+- **Mạng xã hội và trang tuyển dụng:** tin tuyển dụng "cần kinh nghiệm hệ thống X phiên bản Y" nói cho bạn biết họ đang dùng công nghệ gì.
+- **Dữ liệu rò rỉ công khai:** email công ty từng xuất hiện trong các vụ lộ dữ liệu.
+
+### Vì sao ghép lại mới nguy hiểm
+
+Một địa chỉ email, một cái tên phần mềm, một tên nhân viên, riêng lẻ thì vô hại. Ghép lại, chúng cho biết: ai là quản trị viên, hệ thống dùng công nghệ gì, email đặt theo quy tắc nào. Đó là nguyên liệu cho tấn công kỹ thuật xã hội (bài 2.4) và đoán tài khoản.
+
+## Sơ đồ: từ mảnh ghép tới bức tranh
+
+<ConceptMap
+  client:visible
+  title="Các mảnh thông tin công khai ghép thành hồ sơ mục tiêu"
+  width={640}
+  height={320}
+  nodes={[
+    { id: 'whois', label: 'WHOIS', x: 110, y: 60, detail: 'Thông tin đăng ký tên miền: tổ chức, ngày tạo, máy chủ DNS.' },
+    { id: 'cert', label: 'Nhật ký chứng chỉ', x: 110, y: 150, detail: 'Liệt kê các subdomain từng được cấp chứng chỉ TLS, kể cả những trang nội bộ đặt tên vô tình lộ ra.' },
+    { id: 'job', label: 'Tin tuyển dụng', x: 110, y: 240, detail: 'Tiết lộ công nghệ đang dùng và phiên bản, qua yêu cầu kinh nghiệm.' },
+    { id: 'profile', label: 'Hồ sơ mục tiêu', x: 380, y: 150, tone: 'accent', detail: 'Ghép các mảnh lại: tên miền con, công nghệ, nhân sự, quy tắc đặt email. Đây là nền cho các bước sau.' },
+    { id: 'enum', label: 'Liệt kê chủ động', x: 560, y: 80, tone: 'warn', detail: 'Bài 2.2: giờ mới bắt đầu chạm vào hệ thống, nhưng đã biết nên nhìn vào đâu.' },
+    { id: 'social', label: 'Kỹ thuật xã hội', x: 560, y: 220, tone: 'warn', detail: 'Bài 2.4: dùng tên nhân sự và quy tắc email để soạn email lừa đảo thuyết phục.' },
+  ]}
+  edges={[
+    { from: 'whois', to: 'profile' },
+    { from: 'cert', to: 'profile' },
+    { from: 'job', to: 'profile' },
+    { from: 'profile', to: 'enum' },
+    { from: 'profile', to: 'social' },
+  ]}
+/>
+
+## Góc phòng thủ
+
+<Callout type="defense">
+Phòng thủ ở đây là giảm dấu chân công khai: không để lộ phiên bản phần mềm trong tin tuyển dụng, rà soát xem nhật ký chứng chỉ có lộ tên miền nội bộ không, nhắc nhân viên về những gì chia sẻ công khai. Không thể xoá hết, nhưng giảm được nhiều.
+</Callout>
+
+## Lỗi người mới hay gặp
+
+- Nhảy vào quét ngay mà bỏ qua thu thập thụ động, rồi dò mò mất thời gian.
+- Nhầm lẫn ranh giới: truy cập một trang công khai là hợp pháp, nhưng dùng thông tin lộ để đăng nhập vào tài khoản người khác thì không.
+- Không ghi lại nguồn của từng thông tin, tới khi viết báo cáo thì không dẫn chứng được.
+
+## Kiểm tra nhanh
+
+<Quiz
+  client:visible
+  questions={[
+    { q: 'Điểm khác biệt chính giữa thu thập thụ động và chủ động là gì?', options: ['Thụ động nhanh hơn', 'Thụ động không chạm vào hệ thống mục tiêu', 'Thụ động cần công cụ đắt tiền'], answer: 1, explain: 'Thụ động lấy từ bên thứ ba, không gửi gì tới mục tiêu nên không để lại dấu vết trên hệ thống họ.' },
+    { q: 'Nhật ký chứng chỉ TLS công khai thường để lộ điều gì hữu ích?', options: ['Mật khẩu quản trị', 'Danh sách subdomain', 'Số thẻ tín dụng'], answer: 1, explain: 'Chúng liệt kê các tên miền con từng được cấp chứng chỉ.' },
+    { q: 'Một tin tuyển dụng ghi "cần kinh nghiệm quản trị hệ thống X 2016" có giá trị gì?', options: ['Không có gì', 'Gợi ý công nghệ và phiên bản tổ chức đang dùng', 'Cho biết mật khẩu'], answer: 1, explain: 'Nó tiết lộ công nghệ và phiên bản, giúp khoanh vùng lỗ hổng có thể có.' },
+  ]}
+/>
+
+## Ghi nhớ
+
+- Thụ động = gom thông tin công khai, không chạm mục tiêu; chủ động thì có.
+- Nguồn hữu ích: WHOIS, nhật ký chứng chỉ, tìm kiếm, tuyển dụng, dữ liệu rò rỉ.
+- Thông tin lẻ vô hại, ghép lại thành hồ sơ có giá trị. Ghi lại nguồn.

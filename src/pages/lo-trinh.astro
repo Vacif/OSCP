@@ -1,0 +1,82 @@
+---
+import Base from '../layouts/Base.astro';
+import { levels } from '../data/levels';
+import { getLessons } from '../lib/lessons';
+import { url } from '../lib/url';
+
+const lessons = await getLessons();
+---
+<Base title="Lộ trình" description="Lộ trình 24 bài học bảo mật theo hướng OSCP, từ cơ bản tới nâng cao.">
+  <div class="wrap roadmap">
+    <h1>Lộ trình học</h1>
+    <p class="intro">
+      Nên học theo thứ tự. Các bài sau dùng lại kiến thức bài trước, nhất là phần mạng và hệ điều hành ở Cấp 1.
+    </p>
+    <div class="progress" aria-live="polite">
+      <div class="bar"><span class="fill" style="width:0%"></span></div>
+      <span class="progress-text">Đã học 0 / {lessons.length} bài</span>
+    </div>
+
+    {levels.map((lv) => (
+      <section class="level" id={`cap-${lv.id}`}>
+        <div class="level-head">
+          <span class="lv-num">Cấp {lv.id}</span>
+          <h2>{lv.name}</h2>
+          <p>{lv.blurb}</p>
+        </div>
+        <ol class="lesson-list">
+          {lessons.filter((l) => l.data.level === lv.id).map((l) => (
+            <li>
+              <a href={url(`bai/${l.id}`)} data-code={l.data.code}>
+                <span class="l-code">{l.data.code}</span>
+                <span class="l-body">
+                  <strong>{l.data.title}</strong>
+                  <span class="l-sum">{l.data.summary}</span>
+                </span>
+                <span class="l-time">{l.data.duration}</span>
+              </a>
+            </li>
+          ))}
+        </ol>
+      </section>
+    ))}
+  </div>
+</Base>
+
+<script is:inline define:vars={{ total: lessons.length }}>
+  let done = [];
+  try { done = JSON.parse(localStorage.getItem('oscp-done') || '[]'); } catch (e) {}
+  document.querySelectorAll('.lesson-list a[data-code]').forEach((a) => {
+    if (done.includes(a.dataset.code)) a.classList.add('is-done');
+  });
+  const n = document.querySelectorAll('.lesson-list a.is-done').length;
+  document.querySelector('.fill').style.width = (n / total) * 100 + '%';
+  document.querySelector('.progress-text').textContent = 'Đã học ' + n + ' / ' + total + ' bài';
+</script>
+
+<style>
+  .roadmap { max-width: 860px; padding-top: 28px; }
+  .intro { color: var(--muted); font-size: 1.05rem; }
+  .progress { display: flex; align-items: center; gap: 12px; margin: 20px 0 8px; font-size: 0.9rem; color: var(--muted); }
+  .bar { flex: 1; height: 8px; background: var(--surface-2); border-radius: 99px; overflow: hidden; max-width: 320px; }
+  .fill { display: block; height: 100%; background: var(--good); transition: width 0.3s; }
+  .level { margin-top: 36px; }
+  .level-head h2 { margin: 2px 0 4px; padding: 0; }
+  .level-head p { color: var(--muted); margin-bottom: 12px; }
+  .lv-num { font-family: var(--mono); font-size: 0.82rem; color: var(--accent); }
+  .lesson-list { list-style: none; padding: 0; margin: 0; border-left: 2px solid var(--line); }
+  .lesson-list li { margin: 0; }
+  .lesson-list a { display: grid; grid-template-columns: 44px 1fr auto; gap: 12px; padding: 12px 14px; margin-left: -2px; border-left: 2px solid transparent; text-decoration: none; color: var(--text); }
+  .lesson-list a:hover { background: var(--surface); border-left-color: var(--accent); }
+  .l-code { font-family: var(--mono); color: var(--muted); font-size: 0.9rem; padding-top: 2px; }
+  .lesson-list a.is-done { border-left-color: var(--good); }
+  .lesson-list a.is-done .l-code { color: var(--good); }
+  .lesson-list a.is-done .l-code::after { content: ' ✓'; }
+  .l-body { display: flex; flex-direction: column; gap: 2px; }
+  .l-sum { color: var(--muted); font-size: 0.9rem; line-height: 1.5; }
+  .l-time { font-size: 0.8rem; color: var(--muted); white-space: nowrap; padding-top: 3px; }
+  @media (max-width: 560px) {
+    .lesson-list a { grid-template-columns: 38px 1fr; }
+    .l-time { display: none; }
+  }
+</style>

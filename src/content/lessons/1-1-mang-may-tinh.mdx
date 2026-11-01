@@ -1,0 +1,87 @@
+---
+title: "Mạng máy tính: OSI, IP và subnet"
+code: "1.1"
+level: 1
+summary: "Dữ liệu đi từ máy này sang máy kia qua những tầng nào, và địa chỉ IP hoạt động ra sao."
+duration: "70 phút"
+objectives:
+  - "Giải thích được 7 tầng OSI bằng ví dụ gửi thư"
+  - "Phân biệt địa chỉ IP, subnet mask và prefix"
+  - "Tự tính được dải địa chỉ của một mạng"
+  - "Hiểu địa chỉ mạng và broadcast dùng để làm gì"
+---
+import Callout from '../../components/ui/Callout.astro';
+import OsiLayers from '../../components/sim/OsiLayers.tsx';
+import SubnetCalculator from '../../components/sim/SubnetCalculator.tsx';
+import Quiz from '../../components/sim/Quiz.tsx';
+
+## Hình dung trước
+
+Gửi một lá thư cần nhiều lớp công việc: bạn viết nội dung, cho vào phong bì, ghi địa chỉ, bưu điện phân loại, xe chở đi. Mỗi lớp chỉ lo đúng việc của mình. Mạng máy tính cũng chia việc thành các tầng như vậy, để mỗi tầng đơn giản và thay thế được.
+
+## Kiến thức chính
+
+### Mô hình OSI
+
+OSI chia việc truyền dữ liệu thành 7 tầng. Khi gửi, dữ liệu đi từ tầng 7 xuống tầng 1, mỗi tầng bọc thêm phần đầu của mình. Khi nhận, máy kia bóc ngược từ tầng 1 lên tầng 7.
+
+Bấm vào từng tầng để xem nó làm gì, rồi chuyển sang tab thứ hai để thấy quá trình đóng gói:
+
+<OsiLayers client:visible />
+
+Thực tế người ta hay dùng mô hình TCP/IP gọn hơn (4 tầng), nhưng OSI vẫn là ngôn ngữ chung để chỉ "lỗi này nằm ở tầng mấy".
+
+### Địa chỉ IP
+
+Địa chỉ IPv4 gồm 4 số, mỗi số từ 0 đến 255, ví dụ `192.168.1.10`. Bên trong máy tính, nó là một dãy 32 bit. Địa chỉ này chia làm hai phần:
+
+- **Phần mạng:** cho biết máy thuộc mạng nào.
+- **Phần máy (host):** phân biệt các máy trong cùng mạng.
+
+### Subnet mask và prefix
+
+Làm sao biết phần nào là mạng, phần nào là host? Đó là việc của subnet mask. Cách viết gọn là dấu gạch chéo cộng số bit phần mạng, gọi là prefix: `192.168.1.10/24` nghĩa là 24 bit đầu là phần mạng.
+
+Trong mỗi mạng có hai địa chỉ đặc biệt không gán cho máy:
+
+- **Địa chỉ mạng** (bit host toàn 0): tên gọi của cả mạng.
+- **Địa chỉ broadcast** (bit host toàn 1): gửi tới đây là gửi cho mọi máy trong mạng.
+
+### Thử tính
+
+Kéo thanh trượt để đổi prefix và xem phần mạng, phần host thay đổi thế nào:
+
+<SubnetCalculator client:visible />
+
+<Callout type="note">
+Khi quét mạng ở bài 2.2, bạn sẽ quét theo dải như `10.0.0.0/24`. Hiểu subnet giúp bạn biết dải đó có bao nhiêu máy cần quét, thay vì quét mò.
+</Callout>
+
+## Góc phòng thủ
+
+<Callout type="defense">
+Chia mạng thành nhiều subnet nhỏ (network segmentation) là một biện pháp phòng thủ quan trọng. Nếu máy chủ web và máy chứa dữ liệu kế toán nằm ở hai subnet khác nhau, có firewall ở giữa, thì kẻ tấn công chiếm được máy web vẫn chưa với tới dữ liệu kế toán. Bạn sẽ gặp lại ý này ở bài 3.3 về pivoting.
+</Callout>
+
+## Lỗi người mới hay gặp
+
+- Nhầm giữa prefix lớn và mạng lớn. Prefix càng lớn, phần host càng ngắn, mạng càng **nhỏ**.
+- Quên rằng địa chỉ mạng và broadcast không dùng cho máy, nên tính dư 2 địa chỉ.
+- Tưởng `/24` là con số cố định. Prefix thay đổi tuỳ mạng.
+
+## Kiểm tra nhanh
+
+<Quiz
+  client:visible
+  questions={[
+    { q: 'Mạng /26 có bao nhiêu địa chỉ dùng được cho máy?', options: ['64', '62', '26'], answer: 1, explain: '/26 chừa 6 bit host → 2^6 = 64 địa chỉ, trừ 2 (mạng và broadcast) còn 62.' },
+    { q: 'Router làm việc chủ yếu ở tầng nào của OSI?', options: ['Tầng 2 (Data Link)', 'Tầng 3 (Network)', 'Tầng 7 (Application)'], answer: 1, explain: 'Router định tuyến dựa trên địa chỉ IP, thuộc tầng 3.' },
+    { q: 'Địa chỉ broadcast của một mạng có đặc điểm gì?', options: ['Bit phần host toàn 0', 'Bit phần host toàn 1', 'Luôn kết thúc bằng .255'], answer: 1, explain: 'Broadcast là khi toàn bộ bit host bằng 1. Nó chỉ kết thúc bằng .255 khi mạng là /24.' },
+  ]}
+/>
+
+## Ghi nhớ
+
+- OSI chia truyền dữ liệu thành 7 tầng, mỗi tầng một việc.
+- IP gồm phần mạng và phần host; prefix cho biết ranh giới.
+- Prefix lớn = mạng nhỏ. Mỗi mạng mất 2 địa chỉ cho mạng và broadcast.

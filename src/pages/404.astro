@@ -1,0 +1,11 @@
+---
+import Base from '../layouts/Base.astro';
+import { url } from '../lib/url';
+---
+<Base title="Không tìm thấy trang">
+  <div class="wrap" style="max-width:640px;padding-top:48px">
+    <h1>404</h1>
+    <p>Trang này không có. Có thể đường dẫn bị gõ sai hoặc bài đã đổi tên.</p>
+    <p><a class="btn" href={url('lo-trinh')}>Về lộ trình</a></p>
+  </div>
+</Base>

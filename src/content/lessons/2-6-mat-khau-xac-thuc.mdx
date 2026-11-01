@@ -1,0 +1,77 @@
+---
+title: "Mật khẩu và xác thực"
+code: "2.6"
+level: 2
+summary: "Vì sao website không nên lưu mật khẩu gốc, hash và salt là gì, và điều gì làm nên mật khẩu mạnh."
+duration: "55 phút"
+objectives:
+  - "Phân biệt mã hoá và băm (hash)"
+  - "Hiểu salt chống lại kiểu tấn công nào"
+  - "Nắm vì sao độ dài quan trọng hơn ký tự đặc biệt"
+  - "Biết các lớp bảo vệ xác thực ngoài mật khẩu"
+---
+import Callout from '../../components/ui/Callout.astro';
+import HashDemo from '../../components/sim/HashDemo.tsx';
+import Quiz from '../../components/sim/Quiz.tsx';
+
+## Hình dung trước
+
+Một thủ thư giỏi không giữ bản sao chìa khoá nhà của từng độc giả. Thay vào đó họ giữ một dấu hiệu để nhận ra đúng người, mà từ dấu hiệu đó không làm lại được chìa. Băm mật khẩu là ý tưởng này: website giữ một "dấu vân tay" của mật khẩu, không giữ mật khẩu gốc.
+
+## Kiến thức chính
+
+### Băm khác mã hoá
+
+- **Mã hoá** là hai chiều: có khoá thì giải ngược lại được. Dùng khi cần đọc lại dữ liệu, ví dụ HTTPS.
+- **Băm (hash)** là một chiều: từ mật khẩu ra chuỗi băm thì dễ, nhưng từ chuỗi băm suy ngược về mật khẩu thì không có đường tắt. Dùng để lưu mật khẩu.
+
+Khi bạn đăng nhập, website băm mật khẩu bạn vừa nhập rồi so với chuỗi băm đã lưu. Nếu khớp thì đúng, mà website vẫn không cần biết mật khẩu gốc.
+
+### Vì sao cần salt
+
+Nếu hai người dùng cùng một mật khẩu, và website băm trơn, thì hai chuỗi băm sẽ giống hệt nhau. Kẻ đọc được cơ sở dữ liệu sẽ thấy ngay, và có thể dùng bảng tính sẵn (hash của hàng triệu mật khẩu phổ biến) để tra ngược rất nhanh.
+
+Salt là một chuỗi ngẫu nhiên, khác nhau cho mỗi người, được thêm vào trước khi băm. Thử trong mô phỏng: gõ cùng một mật khẩu, bật và tắt salt, xem hai chuỗi băm:
+
+<HashDemo client:visible />
+
+Với salt riêng cho mỗi người, bảng tính sẵn trở nên vô dụng và kẻ tấn công phải xử lý từng tài khoản một.
+
+### Điều gì làm mật khẩu mạnh
+
+Điều quan trọng nhất là **độ dài** và **tính khó đoán**, chứ không phải nhồi ký tự đặc biệt. Một câu dài gồm nhiều từ ngẫu nhiên thường mạnh hơn và dễ nhớ hơn một chuỗi ngắn rối rắm. Lý do: mỗi ký tự thêm vào nhân số tổ hợp cần thử lên nhiều lần.
+
+Ngược lại, mật khẩu nằm trong các danh sách phổ biến (như "123456", "matkhau") thì yếu bất kể trông có vẻ phức tạp, vì kẻ tấn công thử các danh sách này trước tiên.
+
+### Ngoài mật khẩu
+
+Mật khẩu chỉ là một yếu tố. Xác thực hai lớp (2FA) thêm một yếu tố thứ hai: một mã đổi theo thời gian, hoặc một thiết bị vật lý. Khi đó, mật khẩu lộ vẫn chưa đủ để đăng nhập.
+
+## Góc phòng thủ
+
+<Callout type="defense">
+Nguyên tắc cho người xây hệ thống: không bao giờ lưu mật khẩu gốc; dùng hàm băm chuyên cho mật khẩu (loại cố ý chạy chậm để cản tấn công thử hàng loạt) kèm salt riêng cho mỗi người; đặt giới hạn số lần đăng nhập sai; và bật 2FA. Cho người dùng: dùng mật khẩu dài, mỗi nơi một mật khẩu khác nhau, và nếu được thì dùng trình quản lý mật khẩu.
+</Callout>
+
+## Lỗi người mới hay gặp
+
+- Nhầm băm với mã hoá. Mật khẩu lưu dạng mã hoá (giải ngược được) là một thiết kế sai.
+- Tin rằng ký tự đặc biệt quan trọng hơn độ dài. Độ dài mới là yếu tố quyết định nhất.
+- Quên rằng salt không phải bí mật; nó có thể lưu cạnh hash, tác dụng của nó là làm mỗi hash khác nhau, không phải để giấu.
+
+## Kiểm tra nhanh
+
+<Quiz
+  client:visible
+  questions={[
+    { q: 'Vì sao băm phù hợp để lưu mật khẩu còn mã hoá thì không?', options: ['Băm nhanh hơn', 'Băm là một chiều, không giải ngược về mật khẩu gốc', 'Băm tốn ít chỗ hơn'], answer: 1, explain: 'Tính một chiều nghĩa là lộ cơ sở dữ liệu cũng không trực tiếp lấy lại mật khẩu gốc.' },
+    { q: 'Salt chống lại kiểu tấn công nào là chính?', options: ['Tấn công từ chối dịch vụ', 'Bảng hash tính sẵn cho mật khẩu phổ biến', 'Nghe lén mạng'], answer: 1, explain: 'Salt riêng mỗi người làm các bảng tính sẵn mất tác dụng.' },
+    { q: 'Yếu tố nào quan trọng nhất cho độ mạnh mật khẩu?', options: ['Có ký tự đặc biệt', 'Độ dài và tính khó đoán', 'Có chữ in hoa'], answer: 1, explain: 'Độ dài làm số tổ hợp tăng theo cấp số nhân; tính khó đoán tránh các danh sách phổ biến.' },
+  ]}
+/>
+
+## Ghi nhớ
+
+- Băm là một chiều (lưu mật khẩu); mã hoá là hai chiều (bảo vệ dữ liệu cần đọc lại).
+- Salt riêng mỗi người vô hiệu hoá bảng hash tính sẵn.
+- Độ dài và tính khó đoán quyết định độ mạnh; 2FA là lớp bảo vệ thêm quan trọng.

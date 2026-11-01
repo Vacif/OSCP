@@ -1,0 +1,107 @@
+---
+title: "Tư duy và phương pháp"
+code: "0.3"
+level: 0
+summary: "Các giai đoạn của một đợt pentest và thói quen ghi chép giúp bạn không bị lạc."
+duration: "40 phút"
+objectives:
+  - "Kể tên và sắp xếp đúng các giai đoạn của một đợt pentest"
+  - "Hiểu vì sao giai đoạn thu thập và liệt kê chiếm nhiều thời gian nhất"
+  - "Bắt đầu thói quen ghi chép có cấu trúc"
+---
+import Callout from '../../components/ui/Callout.astro';
+import ConceptMap from '../../components/sim/ConceptMap.tsx';
+import Quiz from '../../components/sim/Quiz.tsx';
+
+## Hình dung trước
+
+Thám tử không phá cửa ngay khi tới hiện trường. Họ quan sát, hỏi chuyện, ghi chép, rồi mới đưa ra giả thuyết. Pentest cũng vậy: phần lớn thời gian là tìm hiểu, phần "tấn công" chỉ chiếm một phần nhỏ.
+
+## Kiến thức chính
+
+### Các giai đoạn
+
+1. **Thống nhất phạm vi.** Đã nói ở bài 0.1.
+2. **Thu thập thông tin.** Tìm hiểu mục tiêu là ai, có những gì công khai.
+3. **Liệt kê (enumeration).** Máy nào đang bật, chạy dịch vụ gì, phiên bản nào.
+4. **Xác định lỗ hổng.** Từ thông tin đã có, tìm điểm yếu.
+5. **Khai thác.** Chứng minh điểm yếu là thật, trong phạm vi cho phép.
+6. **Sau khai thác.** Đánh giá mức độ ảnh hưởng: từ chỗ này đi được tới đâu.
+7. **Báo cáo.** Ghi lại tất cả và đề xuất cách sửa.
+
+Đây không phải đường thẳng. Thường bạn sẽ quay lại bước liệt kê nhiều lần, mỗi lần biết thêm một chút.
+
+### Liệt kê là phần quan trọng nhất
+
+Người làm OSCP lâu năm hay nói: "Bế tắc thì quay lại liệt kê." Khi không tìm ra hướng đi, nguyên nhân thường là bỏ sót một thông tin nhỏ ở bước trước, chứ hiếm khi do thiếu kỹ thuật cao siêu.
+
+### Ghi chép
+
+Chọn một công cụ ghi chú bạn thích (Obsidian, CherryTree, Joplin hoặc chỉ là file Markdown). Mỗi máy mục tiêu một trang, chia mục cố định:
+
+```text
+# 10.0.0.5
+## Dịch vụ tìm thấy
+## Thông tin đáng chú ý
+## Đã thử (và kết quả)
+## Bằng chứng (ảnh chụp màn hình, thời gian)
+## Hướng tiếp theo
+```
+
+Mục "Đã thử" giúp bạn khỏi làm lại cùng một việc ba lần lúc 3 giờ sáng.
+
+## Sơ đồ: vòng lặp pentest
+
+<ConceptMap
+  client:visible
+  title="Các giai đoạn của một đợt pentest"
+  width={640}
+  height={300}
+  nodes={[
+    { id: 'scope', label: '1. Phạm vi', x: 90, y: 60, detail: 'Thống nhất được thử gì, khi nào, cấm gì. Không có bước này thì không có các bước sau.' },
+    { id: 'recon', label: '2. Thu thập', x: 320, y: 60, detail: 'Tìm thông tin công khai về mục tiêu: tên miền, nhân sự, công nghệ đang dùng. Bài 2.1.' },
+    { id: 'enum', label: '3. Liệt kê', x: 550, y: 60, tone: 'accent', detail: 'Tìm máy đang chạy, dịch vụ, phiên bản. Bước tốn thời gian nhất và quan trọng nhất. Bài 2.2.' },
+    { id: 'vuln', label: '4. Tìm lỗ hổng', x: 550, y: 160, detail: 'Từ dịch vụ và phiên bản, tìm điểm yếu đã biết hoặc cấu hình sai. Bài 2.3 đến 2.6.' },
+    { id: 'exploit', label: '5. Khai thác', x: 320, y: 160, tone: 'warn', detail: 'Chứng minh lỗ hổng là thật, trong phạm vi cho phép và với ít rủi ro nhất cho hệ thống.' },
+    { id: 'post', label: '6. Sau khai thác', x: 90, y: 160, detail: 'Đánh giá từ chỗ đã vào được, kẻ tấn công thật đi tiếp được tới đâu. Cấp 3.' },
+    { id: 'report', label: '7. Báo cáo', x: 320, y: 255, tone: 'accent', detail: 'Ghi lại mọi phát hiện, bằng chứng và cách khắc phục. Bài 4.1.' },
+  ]}
+  edges={[
+    { from: 'scope', to: 'recon' },
+    { from: 'recon', to: 'enum' },
+    { from: 'enum', to: 'vuln' },
+    { from: 'vuln', to: 'exploit' },
+    { from: 'exploit', to: 'post' },
+    { from: 'post', to: 'enum', label: 'quay lại', dashed: true },
+    { from: 'post', to: 'report' },
+  ]}
+/>
+
+## Góc phòng thủ
+
+<Callout type="defense">
+Bên phòng thủ cũng nghĩ theo các giai đoạn này. Nếu chặn được kẻ tấn công ngay ở bước thu thập và liệt kê, ví dụ không để lộ phiên bản phần mềm, đóng các cổng không dùng, thì các bước sau khó hơn nhiều.
+</Callout>
+
+## Lỗi người mới hay gặp
+
+- Thấy một dịch vụ là lao vào thử ngay, bỏ qua các dịch vụ khác.
+- Không ghi lại những gì đã thử, nên lặp lại công việc.
+- Không chụp bằng chứng ngay lúc làm, tới khi viết báo cáo thì không tái hiện được.
+
+## Kiểm tra nhanh
+
+<Quiz
+  client:visible
+  questions={[
+    { q: 'Bạn bị bế tắc ở một máy. Lời khuyên phổ biến nhất là gì?', options: ['Đổi sang công cụ mạnh hơn', 'Quay lại bước liệt kê', 'Bỏ máy đó luôn'], answer: 1, explain: 'Bế tắc thường do bỏ sót thông tin ở bước liệt kê.' },
+    { q: 'Giai đoạn nào bắt buộc phải có trước tiên?', options: ['Thu thập thông tin', 'Thống nhất phạm vi', 'Liệt kê'], answer: 1, explain: 'Chưa có phạm vi và sự cho phép thì chưa được làm gì.' },
+    { q: 'Mục "Đã thử" trong ghi chú có tác dụng chính là gì?', options: ['Để khoe với đồng nghiệp', 'Tránh lặp lại công việc và làm tư liệu cho báo cáo', 'Không có tác dụng'], answer: 1, explain: 'Ghi lại những gì đã thử giúp tiết kiệm thời gian và dễ viết báo cáo.' },
+  ]}
+/>
+
+## Ghi nhớ
+
+- Phạm vi → thu thập → liệt kê → tìm lỗ hổng → khai thác → sau khai thác → báo cáo.
+- Liệt kê kỹ quan trọng hơn biết nhiều kỹ thuật.
+- Ghi chép theo mẫu cố định ngay từ máy đầu tiên.

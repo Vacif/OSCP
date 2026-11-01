@@ -1,0 +1,100 @@
+---
+title: "Active Directory: kiến trúc"
+code: "3.4"
+level: 3
+summary: "Cách doanh nghiệp quản lý tập trung hàng trăm máy và người dùng, và Kerberos đăng nhập ra sao."
+duration: "75 phút"
+objectives:
+  - "Hiểu domain, domain controller và cây thư mục"
+  - "Phân biệt domain, tree và forest"
+  - "Nắm luồng đăng nhập Kerberos ở mức khái niệm"
+  - "Hiểu vì sao AD là trọng tâm của pentest doanh nghiệp"
+---
+import Callout from '../../components/ui/Callout.astro';
+import ConceptMap from '../../components/sim/ConceptMap.tsx';
+import SequenceDiagram from '../../components/sim/SequenceDiagram.tsx';
+import Quiz from '../../components/sim/Quiz.tsx';
+
+## Hình dung trước
+
+Một công ty 500 người không thể tạo tài khoản riêng rẽ trên từng máy. Họ cần một "phòng nhân sự trung tâm" quản lý mọi tài khoản, quyền và máy móc ở một nơi. Active Directory (AD) là phòng nhân sự đó cho thế giới Windows.
+
+## Kiến thức chính
+
+### Domain và domain controller
+
+- **Domain** là một nhóm người dùng, máy tính và tài nguyên được quản lý chung.
+- **Domain Controller (DC)** là máy chủ giữ cơ sở dữ liệu AD và xử lý đăng nhập. Chiếm được DC gần như là chiếm cả domain, nên nó là mục tiêu giá trị nhất.
+
+Khi một nhân viên đăng nhập vào máy của họ bằng tài khoản công ty, chính DC là nơi xác thực.
+
+### Domain, tree, forest
+
+<ConceptMap
+  client:visible
+  title="Cấu trúc phân cấp của Active Directory"
+  width={640}
+  height={300}
+  nodes={[
+    { id: 'forest', label: 'Forest', sub: 'ranh giới an ninh ngoài cùng', x: 320, y: 55, tone: 'accent', detail: 'Tập hợp một hoặc nhiều domain dùng chung cấu hình nền. Forest là ranh giới an ninh thật sự của AD.' },
+    { id: 'd1', label: 'cong-ty.vn', sub: 'domain gốc', x: 180, y: 160, detail: 'Domain gốc của forest.' },
+    { id: 'd2', label: 'chi-nhanh.cong-ty.vn', sub: 'domain con', x: 470, y: 160, detail: 'Domain con, cùng cây với domain gốc. Domain gốc và các con tạo thành một tree.' },
+    { id: 'u', label: 'Người dùng, máy, nhóm', x: 180, y: 250, detail: 'Các đối tượng bên trong một domain: tài khoản người dùng, máy tính, nhóm quyền.' },
+    { id: 'trust', label: 'Quan hệ tin cậy', x: 470, y: 250, tone: 'warn', detail: 'Các domain có thể tin cậy nhau để người dùng domain này truy cập tài nguyên domain kia. Quan hệ tin cậy cấu hình rộng tay là một rủi ro.' },
+  ]}
+  edges={[
+    { from: 'forest', to: 'd1' },
+    { from: 'forest', to: 'd2' },
+    { from: 'd1', to: 'u' },
+    { from: 'd1', to: 'trust', dashed: true },
+    { from: 'd2', to: 'trust', dashed: true },
+  ]}
+/>
+
+### Kerberos: đăng nhập trong AD
+
+AD dùng giao thức Kerberos để xác thực. Ý tưởng cốt lõi: thay vì gửi mật khẩu khắp nơi, người dùng lấy các "vé" (ticket) từ DC rồi dùng vé để truy cập dịch vụ. Xem luồng ở mức khái niệm:
+
+<SequenceDiagram
+  client:visible
+  title="Luồng Kerberos (đã đơn giản hoá)"
+  actors={['Người dùng', 'Domain Controller', 'Dịch vụ']}
+  steps={[
+    { from: 0, to: 1, label: 'Tôi là ai + yêu cầu vé', note: 'Người dùng chứng minh danh tính với DC (dựa trên mật khẩu, nhưng mật khẩu không bị gửi đi dạng rõ).' },
+    { from: 1, to: 0, label: 'Vé tổng (TGT)', note: 'DC cấp một "vé tổng" (Ticket Granting Ticket). Nó như tấm thẻ ra vào chung, chứng minh bạn đã đăng nhập.', tone: 'good' },
+    { from: 0, to: 1, label: 'Dùng TGT xin vé dịch vụ', note: 'Khi cần dùng một dịch vụ cụ thể (ví dụ máy chủ file), người dùng đưa TGT ra xin một vé riêng cho dịch vụ đó.' },
+    { from: 1, to: 0, label: 'Vé dịch vụ', note: 'DC cấp vé dịch vụ, chỉ dùng được cho đúng dịch vụ đã xin.', tone: 'good' },
+    { from: 0, to: 2, label: 'Trình vé dịch vụ', note: 'Người dùng đưa vé cho dịch vụ. Dịch vụ kiểm tra vé hợp lệ và cho vào, mà không cần hỏi lại DC.', tone: 'good' },
+  ]}
+/>
+
+Hiểu luồng này giúp bạn nắm được vì sao ở bài 3.5, nhiều kỹ thuật tấn công AD xoay quanh việc lạm dụng các loại vé này.
+
+## Góc phòng thủ
+
+<Callout type="defense">
+Bảo vệ AD bắt đầu từ việc bảo vệ domain controller như tài sản quý nhất: hạn chế ai đăng nhập được vào DC, giám sát chặt. Ngoài ra: giữ số tài khoản quyền cao ở mức tối thiểu, rà soát các quan hệ tin cậy giữa domain, và theo dõi các mẫu yêu cầu vé bất thường. Vì forest là ranh giới an ninh, việc nối hai forest bằng quan hệ tin cậy cần được cân nhắc kỹ.
+</Callout>
+
+## Lỗi người mới hay gặp
+
+- Nhầm domain với forest. Forest mới là ranh giới an ninh ngoài cùng.
+- Nghĩ chiếm một máy trong domain là xong. Mục tiêu thật thường là domain controller.
+- Bỏ qua quan hệ tin cậy giữa các domain, vốn có thể mở đường đi bất ngờ.
+
+## Kiểm tra nhanh
+
+<Quiz
+  client:visible
+  questions={[
+    { q: 'Máy nào là mục tiêu giá trị nhất trong một domain?', options: ['Máy in', 'Domain Controller', 'Máy của nhân viên mới'], answer: 1, explain: 'DC giữ cơ sở dữ liệu AD và xử lý xác thực; chiếm được nó gần như chiếm cả domain.' },
+    { q: 'Trong Kerberos, "vé tổng" (TGT) dùng để làm gì?', options: ['Truy cập thẳng mọi dịch vụ', 'Chứng minh đã đăng nhập, để xin các vé dịch vụ riêng', 'Lưu mật khẩu'], answer: 1, explain: 'TGT chứng minh danh tính và được dùng để xin vé cho từng dịch vụ cụ thể.' },
+    { q: 'Ranh giới an ninh ngoài cùng của AD là gì?', options: ['Domain', 'Forest', 'Một máy tính'], answer: 1, explain: 'Forest là ranh giới an ninh thật sự; trong đó có thể có nhiều domain.' },
+  ]}
+/>
+
+## Ghi nhớ
+
+- AD quản lý tập trung người dùng và máy; domain controller là trung tâm.
+- Domain nằm trong tree, tree nằm trong forest; forest là ranh giới an ninh.
+- Kerberos dùng vé thay cho việc gửi mật khẩu khắp nơi; TGT xin ra vé dịch vụ.

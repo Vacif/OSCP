@@ -1,0 +1,12 @@
+---
+interface Props {
+  type?: 'note' | 'warn' | 'defense';
+  label?: string;
+}
+const { type = 'note', label } = Astro.props;
+const defaults = { note: 'Ghi chú', warn: 'Cẩn thận', defense: 'Góc phòng thủ' };
+---
+<div class={`callout ${type}`}>
+  <span class="callout-label">{label ?? defaults[type]}</span>
+  <slot />
+</div>

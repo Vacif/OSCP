@@ -1,0 +1,6 @@
+---
+// Thuật ngữ có giải thích ngắn khi rê chuột hoặc chạm vào.
+interface Props { t: string }
+const { t } = Astro.props;
+---
+<abbr class="term" title={t} tabindex="0"><slot /></abbr>

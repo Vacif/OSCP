@@ -1,0 +1,90 @@
+---
+title: "Pivoting và mạng nội bộ"
+code: "3.3"
+level: 3
+summary: "Dùng một máy đã chiếm được làm bàn đạp để với tới những máy không thể chạm trực tiếp."
+duration: "60 phút"
+objectives:
+  - "Hiểu vì sao có những máy không chạm tới được từ bên ngoài"
+  - "Giải thích pivoting bằng khái niệm bàn đạp"
+  - "Nắm ý tưởng chung của chuyển tiếp kết nối qua máy trung gian"
+  - "Hiểu phân đoạn mạng hạn chế pivoting ra sao"
+---
+import Callout from '../../components/ui/Callout.astro';
+import ConceptMap from '../../components/sim/ConceptMap.tsx';
+import Quiz from '../../components/sim/Quiz.tsx';
+
+## Hình dung trước
+
+Trong một toà nhà, từ sảnh bạn không vào thẳng được kho. Nhưng nếu bạn vào được phòng làm việc tầng 2, và phòng đó có cửa thông sang kho, thì phòng tầng 2 trở thành bàn đạp. Pivoting trong mạng là đúng ý này: máy đầu tiên chiếm được trở thành điểm trung chuyển để với tới các máy sâu hơn.
+
+## Kiến thức chính
+
+### Vì sao cần pivoting
+
+Mạng doanh nghiệp thường chia nhiều vùng. Vùng tiếp xúc Internet (nơi đặt máy chủ web) được phép ra ngoài. Vùng nội bộ (nơi đặt máy nhân viên, cơ sở dữ liệu) thì không cho truy cập trực tiếp từ Internet. Nhớ lại ý phân đoạn mạng ở bài 1.1.
+
+Khi bạn chiếm được máy chủ web ở vùng ngoài, bạn thường phát hiện nó lại nói chuyện được với các máy nội bộ mà bạn không chạm tới trực tiếp. Pivoting là dùng chính máy đó làm cầu nối.
+
+### Ý tưởng chuyển tiếp
+
+Máy của bạn không gửi gói tin thẳng tới máy nội bộ được. Thay vào đó, bạn ra lệnh cho máy đã chiếm (máy bàn đạp) chuyển tiếp các kết nối giúp bạn. Với máy nội bộ, kết nối trông như đến từ máy bàn đạp, một máy "quen", nên nó chấp nhận.
+
+Điều quan trọng cần hiểu ở mức khái niệm: pivoting không tạo ra quyền mới, nó chỉ mở rộng **tầm với**. Bạn vẫn cần tìm lỗ hổng và leo thang trên từng máy nội bộ như bình thường.
+
+### Sơ đồ mạng nhiều vùng
+
+<ConceptMap
+  client:visible
+  title="Dùng máy bàn đạp để với tới vùng nội bộ"
+  width={660}
+  height={320}
+  zones={[
+    { label: 'Vùng tiếp xúc Internet', x: 20, y: 110, w: 300, h: 190 },
+    { label: 'Vùng nội bộ', x: 360, y: 110, w: 280, h: 190 },
+  ]}
+  nodes={[
+    { id: 'att', label: 'Máy của bạn', x: 110, y: 55, tone: 'accent', detail: 'Ở ngoài Internet. Chỉ chạm trực tiếp được vùng tiếp xúc, không chạm được vùng nội bộ.' },
+    { id: 'web', label: 'Máy chủ web', sub: 'đã chiếm', x: 170, y: 210, tone: 'warn', detail: 'Chiếm được từ Internet. Nó nằm ở vùng ngoài nhưng lại nói chuyện được với vùng nội bộ. Đây là máy bàn đạp.' },
+    { id: 'db', label: 'Cơ sở dữ liệu', x: 500, y: 165, detail: 'Chỉ nhận kết nối từ trong mạng nội bộ. Không thể chạm trực tiếp từ Internet, nhưng máy chủ web thì tới được.' },
+    { id: 'file', label: 'Máy chủ file', x: 500, y: 255, detail: 'Cũng ở vùng nội bộ. Qua bàn đạp, giờ nằm trong tầm với để liệt kê và tìm lỗ hổng.' },
+  ]}
+  edges={[
+    { from: 'att', to: 'web', label: 'chiếm trực tiếp' },
+    { from: 'web', to: 'db', label: 'chuyển tiếp', dashed: true },
+    { from: 'web', to: 'file', label: 'chuyển tiếp', dashed: true },
+  ]}
+/>
+
+<Callout type="note">
+Bấm vào máy chủ web trong sơ đồ: nó là mắt xích vừa thuộc vùng ngoài vừa chạm được vùng trong. Chính vị trí "hai chân hai vùng" này khiến nó thành bàn đạp giá trị.
+</Callout>
+
+## Góc phòng thủ
+
+<Callout type="defense">
+Phân đoạn mạng là biện pháp phòng thủ chính chống pivoting. Nếu máy chủ web chỉ được phép mở đúng những kết nối nó thật sự cần, thay vì nói chuyện tự do với cả vùng nội bộ, thì giá trị của nó khi bị chiếm sẽ nhỏ đi nhiều. Thêm vào đó: giám sát lưu lượng bất thường giữa các vùng, và áp dụng nguyên tắc tin cậy tối thiểu (không mặc định tin một máy chỉ vì nó ở trong mạng).
+</Callout>
+
+## Lỗi người mới hay gặp
+
+- Nghĩ pivoting cho thêm quyền. Nó chỉ mở rộng tầm với; vẫn phải khai thác và leo thang trên từng máy.
+- Quên liệt kê "máy này còn nói chuyện được với ai", một bước dễ bỏ sót sau khi chiếm máy đầu tiên.
+- Bỏ qua việc ghi chép sơ đồ mạng khi đi sâu, dẫn tới lạc đường trong mạng nhiều vùng.
+
+## Kiểm tra nhanh
+
+<Quiz
+  client:visible
+  questions={[
+    { q: 'Pivoting về bản chất làm gì?', options: ['Tạo quyền root mới', 'Dùng máy đã chiếm làm cầu nối để với tới máy khác', 'Quét cổng nhanh hơn'], answer: 1, explain: 'Nó mở rộng tầm với qua một máy trung gian, không tạo thêm quyền.' },
+    { q: 'Vì sao máy nội bộ chấp nhận kết nối chuyển tiếp qua máy bàn đạp?', options: ['Vì kết nối trông như đến từ một máy quen trong mạng', 'Vì máy nội bộ không có bảo vệ', 'Vì pivoting phá firewall'], answer: 0, explain: 'Kết nối xuất phát từ máy bàn đạp, vốn được mạng nội bộ tin tưởng hơn một máy lạ từ Internet.' },
+    { q: 'Biện pháp phòng thủ chính chống pivoting là gì?', options: ['Đổi mật khẩu thường xuyên', 'Phân đoạn mạng và chỉ cho phép đúng kết nối cần thiết', 'Tắt máy chủ web'], answer: 1, explain: 'Hạn chế những gì mỗi máy được phép kết nối tới làm giảm giá trị của một máy bị chiếm.' },
+  ]}
+/>
+
+## Ghi nhớ
+
+- Pivoting dùng máy đã chiếm làm bàn đạp tới các máy không chạm trực tiếp được.
+- Nó mở rộng tầm với, không tạo quyền mới.
+- Phân đoạn mạng và tin cậy tối thiểu là cách phòng thủ cốt lõi.

@@ -1,0 +1,96 @@
+---
+title: "Active Directory: điểm yếu thường gặp và phòng thủ"
+code: "3.5"
+level: 3
+summary: "Vì sao kẻ tấn công lan từ một tài khoản thường tới cả domain, và cách bên phòng thủ chặn lại."
+duration: "70 phút"
+objectives:
+  - "Hiểu khái niệm đường đi tấn công (attack path) trong AD"
+  - "Nhận ra các lớp điểm yếu phổ biến ở mức khái niệm"
+  - "Thấy quan hệ quyền hạn tạo ra đường đi bất ngờ ra sao"
+  - "Nắm các biện pháp phòng thủ tương ứng"
+---
+import Callout from '../../components/ui/Callout.astro';
+import ConceptMap from '../../components/sim/ConceptMap.tsx';
+import Quiz from '../../components/sim/Quiz.tsx';
+
+## Hình dung trước
+
+Trong một công ty, một nhân viên thường không có chìa khoá phòng giám đốc. Nhưng nếu họ quản lý tài khoản của trợ lý, mà trợ lý lại có quyền vào phòng giám đốc, thì tồn tại một "đường đi" gián tiếp. Tấn công AD phần lớn là tìm những chuỗi quan hệ như vậy.
+
+## Kiến thức chính
+
+### Đường đi tấn công
+
+Trong AD, giữa các đối tượng có vô số quan hệ quyền hạn: ai thuộc nhóm nào, ai quản lý được tài khoản nào, ai đăng nhập ở máy nào. Kẻ tấn công không cần một lỗ hổng duy nhất to lớn; họ nối nhiều quan hệ nhỏ thành một chuỗi từ tài khoản thường tới quyền quản trị domain. Chuỗi đó gọi là *attack path*.
+
+Đây là lý do AD khó bảo vệ: mỗi quan hệ riêng lẻ trông hợp lý, nhưng ghép lại tạo ra đường đi không ai cố ý tạo ra.
+
+### Các lớp điểm yếu phổ biến (mức khái niệm)
+
+- **Tài khoản quyền cao dùng bừa:** quản trị viên đăng nhập vào máy thường ngày. Dấu vết phiên đăng nhập của họ để lại trên máy đó có thể bị lợi dụng nếu máy bị chiếm.
+- **Lạm dụng vé Kerberos:** nhớ lại các loại vé ở bài 3.4. Một số cấu hình cho phép xin hoặc dùng vé theo cách ngoài ý định, mở đường tới tài khoản khác.
+- **Mật khẩu yếu hoặc để lộ trong AD:** một số trường thông tin trong AD vô tình chứa mật khẩu; tài khoản dịch vụ hay đặt mật khẩu yếu và ít đổi.
+- **Quyền uỷ nhiệm cấu hình rộng tay:** cho phép một tài khoản hành động "thay mặt" tài khoản khác, nếu cấu hình lỏng sẽ bị lợi dụng.
+- **Quan hệ tin cậy giữa domain quá rộng:** mở đường từ domain ít quan trọng sang domain quan trọng.
+
+Mỗi mục trên là một chủ đề lớn; ở cấp này mục tiêu là nhận ra **loại** vấn đề và hiểu vì sao nó nguy hiểm.
+
+### Sơ đồ: một đường đi ví dụ
+
+<ConceptMap
+  client:visible
+  title="Chuỗi quan hệ dẫn từ nhân viên tới quản trị domain"
+  width={660}
+  height={300}
+  nodes={[
+    { id: 'emp', label: 'Tài khoản nhân viên', x: 110, y: 150, detail: 'Điểm khởi đầu: một tài khoản thường mà kẻ tấn công đã chiếm.' },
+    { id: 'grp', label: 'Nhóm trợ giúp IT', x: 300, y: 80, tone: 'warn', detail: 'Nhân viên tình cờ thuộc nhóm này. Nhóm có quyền đặt lại mật khẩu cho một số tài khoản khác.' },
+    { id: 'svc', label: 'Tài khoản dịch vụ', x: 300, y: 220, tone: 'warn', detail: 'Một tài khoản mà nhóm IT đặt lại mật khẩu được. Tài khoản này lại có quyền cao trên một máy chủ quan trọng.' },
+    { id: 'da', label: 'Quản trị domain', x: 540, y: 150, tone: 'accent', detail: 'Đích đến. Từ máy chủ quan trọng, dấu vết của một phiên quản trị domain có thể bị thu thập, hoàn tất đường đi.' },
+  ]}
+  edges={[
+    { from: 'emp', to: 'grp', label: 'thành viên' },
+    { from: 'grp', to: 'svc', label: 'đặt lại mật khẩu' },
+    { from: 'svc', to: 'da', label: 'dẫn tới' },
+  ]}
+/>
+
+<Callout type="note">
+Bấm lần lượt từng ô theo chiều mũi tên. Không có bước nào là "lỗ hổng phần mềm" cả, tất cả đều là quyền hạn được cấu hình. Đó chính là bản chất của tấn công AD.
+</Callout>
+
+## Góc phòng thủ
+
+<Callout type="defense">
+Phòng thủ AD hiện đại tập trung vào thu hẹp các đường đi hơn là vá từng lỗi:
+<br />• Dùng tài khoản riêng cho việc quản trị, và chỉ đăng nhập chúng vào những máy được bảo vệ nghiêm (phân tầng quản trị).
+<br />• Giảm số thành viên các nhóm quyền cao xuống mức tối thiểu và rà soát định kỳ.
+<br />• Đặt mật khẩu mạnh, đổi tự động cho tài khoản dịch vụ.
+<br />• Rà soát quyền uỷ nhiệm và quan hệ tin cậy.
+<br />• Giám sát các hành vi bất thường quanh vé Kerberos và việc đặt lại mật khẩu.
+<br />Có công cụ vẽ bản đồ quan hệ trong AD; bên phòng thủ dùng chính chúng để tìm và cắt các đường đi trước kẻ tấn công.
+</Callout>
+
+## Lỗi người mới hay gặp
+
+- Tìm một "lỗ hổng" duy nhất, trong khi AD thường bị hạ bằng chuỗi nhiều quan hệ hợp lệ.
+- Bỏ qua tài khoản dịch vụ, vốn hay có mật khẩu yếu và quyền cao.
+- Không vẽ lại đường đi khi liệt kê, nên không thấy được bức tranh tổng thể.
+
+## Kiểm tra nhanh
+
+<Quiz
+  client:visible
+  questions={[
+    { q: 'Attack path trong AD là gì?', options: ['Một lỗ hổng phần mềm lớn', 'Chuỗi nhiều quan hệ quyền hạn nối từ quyền thấp tới quyền cao', 'Một loại virus'], answer: 1, explain: 'Nhiều quan hệ nhỏ, mỗi cái hợp lý, ghép lại thành đường đi tới quản trị domain.' },
+    { q: 'Vì sao tài khoản dịch vụ thường là mắt xích yếu?', options: ['Vì chúng không có quyền gì', 'Vì hay có mật khẩu yếu, ít đổi, nhưng lại quyền cao', 'Vì chúng luôn bị khoá'], answer: 1, explain: 'Tài khoản dịch vụ thường cấu hình một lần rồi để đó với mật khẩu yếu và quyền rộng.' },
+    { q: 'Hướng phòng thủ AD hiện đại nhấn mạnh điều gì?', options: ['Chỉ cần vá phần mềm', 'Thu hẹp và cắt các đường đi tấn công', 'Đổi tên domain'], answer: 1, explain: 'Vì vấn đề là quan hệ quyền hạn, phòng thủ tập trung vào giảm và cắt các đường đi.' },
+  ]}
+/>
+
+## Ghi nhớ
+
+- Tấn công AD thường là nối nhiều quan hệ quyền hạn hợp lệ thành một đường đi.
+- Các lớp điểm yếu: quản trị dùng bừa, lạm dụng vé, mật khẩu lộ, uỷ nhiệm và tin cậy rộng tay.
+- Phòng thủ: phân tầng quản trị, giảm nhóm quyền cao, bảo vệ tài khoản dịch vụ, giám sát và cắt đường đi.

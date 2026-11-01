@@ -1,0 +1,94 @@
+---
+title: "Dò quét và liệt kê dịch vụ"
+code: "2.2"
+level: 2
+summary: "Tìm máy nào đang bật, cổng nào mở, dịch vụ gì chạy sau cổng đó. Bước quan trọng nhất."
+duration: "70 phút"
+objectives:
+  - "Hiểu quét cổng dựa trên bắt tay TCP đã học ở bài 1.2"
+  - "Phân biệt trạng thái cổng: mở, đóng, bị lọc"
+  - "Hiểu vì sao liệt kê dịch vụ và phiên bản quan trọng hơn chỉ liệt kê cổng"
+  - "Biết quét ồn ào và quét kín khác nhau ra sao"
+---
+import Callout from '../../components/ui/Callout.astro';
+import SequenceDiagram from '../../components/sim/SequenceDiagram.tsx';
+import Quiz from '../../components/sim/Quiz.tsx';
+
+## Hình dung trước
+
+Tới một toà nhà lạ, việc đầu tiên là đi một vòng xem có những cửa nào, cửa nào mở, sau mỗi cửa là phòng gì. Quét và liệt kê chính là đi vòng đó, nhưng với máy tính: cổng nào mở, sau cổng là dịch vụ gì, phiên bản bao nhiêu.
+
+## Kiến thức chính
+
+### Quét host: máy nào đang bật
+
+Trước khi quét cổng, ta tìm xem trong dải mạng (ví dụ `10.0.0.0/24`, nhớ lại bài 1.1) máy nào đang bật. Cách phổ biến là gửi gói thăm dò và xem máy nào trả lời.
+
+### Quét cổng dựa trên bắt tay
+
+Nhớ lại bắt tay ba bước ở bài 1.2. Quét cổng chính là bắt đầu cái bắt tay đó và đọc phản ứng của máy chủ:
+
+<SequenceDiagram
+  client:visible
+  title="Một cổng cho ba kết quả khác nhau"
+  actors={['Máy quét', 'Máy mục tiêu']}
+  scenarios={[
+    { name: 'Cổng mở', steps: [
+      { from: 0, to: 1, label: 'SYN → cổng 80', note: 'Máy quét gửi SYN tới cổng 80.' },
+      { from: 1, to: 0, label: 'SYN + ACK', note: 'Có dịch vụ đang lắng nghe nên máy mục tiêu trả lời. Kết luận: cổng MỞ.', tone: 'good' },
+      { from: 0, to: 1, label: 'RST', note: 'Máy quét ngắt ngay để khỏi hoàn tất kết nối, cho nhanh và bớt dấu vết.', tone: 'muted' },
+    ] },
+    { name: 'Cổng đóng', steps: [
+      { from: 0, to: 1, label: 'SYN → cổng 81', note: 'Máy quét gửi SYN tới cổng 81.' },
+      { from: 1, to: 0, label: 'RST', note: 'Không có dịch vụ nào lắng nghe, máy mục tiêu từ chối thẳng. Kết luận: cổng ĐÓNG.', tone: 'bad' },
+    ] },
+    { name: 'Cổng bị lọc', steps: [
+      { from: 0, to: 1, label: 'SYN → cổng 82', note: 'Máy quét gửi SYN tới cổng 82.' },
+      { from: 0, to: 1, label: '(chờ... không có trả lời)', note: 'Firewall lặng lẽ bỏ gói tin. Không có hồi âm. Kết luận: cổng BỊ LỌC. Đây là lý do quét qua firewall thường chậm.', tone: 'muted' },
+    ] },
+  ]}
+/>
+
+### Liệt kê dịch vụ và phiên bản
+
+Biết cổng 80 mở mới là một nửa. Nửa còn lại: sau cổng đó là phần mềm gì, phiên bản nào? Công cụ quét có thể "hỏi chuyện" dịch vụ để đoán ra, ví dụ `Apache 2.4.29` hay `OpenSSH 7.6`. Chính phiên bản này dẫn tới bước tìm lỗ hổng ở bài 2.5.
+
+<Callout type="note">
+Đừng đoán dịch vụ chỉ bằng số cổng. Một dịch vụ web có thể chạy ở cổng 8080, 8000, hay bất kỳ cổng nào. Luôn xác minh bằng cách liệt kê dịch vụ thật.
+</Callout>
+
+### Ồn ào hay kín đáo
+
+- Quét nhanh, nhiều cổng, nhiều máy cùng lúc: nhanh nhưng dễ bị hệ thống giám sát phát hiện.
+- Quét chậm, rải rác: khó bị phát hiện hơn nhưng tốn thời gian.
+
+Trong OSCP, phạm vi là lab của bạn nên thường quét thoải mái. Trong công việc thật, mức độ ồn ào phải nằm trong thoả thuận.
+
+## Góc phòng thủ
+
+<Callout type="defense">
+Bên phòng thủ phát hiện quét bằng cách để ý nhiều gói SYN tới nhiều cổng trong thời gian ngắn từ cùng một nguồn. Biện pháp giảm rủi ro: đóng mọi cổng không dùng (giảm bề mặt tấn công), đặt firewall lọc cổng không cần lộ ra ngoài, và dùng hệ thống phát hiện xâm nhập để cảnh báo khi thấy quét. Quy tắc vàng: dịch vụ không cần thì đừng để chạy.
+</Callout>
+
+## Lỗi người mới hay gặp
+
+- Chỉ quét các cổng phổ biến rồi dừng, bỏ sót dịch vụ chạy ở cổng lạ.
+- Quên quét UDP. DNS, SNMP và nhiều dịch vụ quan trọng nằm trên UDP.
+- Liệt kê qua loa. Phần lớn bế tắc trong OSCP là do liệt kê chưa kỹ, không phải thiếu kỹ thuật cao.
+
+## Kiểm tra nhanh
+
+<Quiz
+  client:visible
+  questions={[
+    { q: 'Máy mục tiêu trả về RST ngay khi nhận SYN. Cổng ở trạng thái nào?', options: ['Mở', 'Đóng', 'Bị lọc'], answer: 1, explain: 'RST là lời từ chối: không có dịch vụ lắng nghe, cổng đóng.' },
+    { q: 'Vì sao quét qua firewall thường chậm?', options: ['Firewall làm chậm mạng', 'Cổng bị lọc không trả lời nên máy quét phải chờ hết thời gian', 'Vì có quá nhiều cổng'], answer: 1, explain: 'Khi gói bị lặng lẽ bỏ, máy quét không có phản hồi để kết luận nên phải đợi timeout.' },
+    { q: 'Sau khi biết cổng 8080 mở, bước tiếp theo nên là gì?', options: ['Kết luận ngay đó là web', 'Liệt kê để xác định dịch vụ và phiên bản thật', 'Bỏ qua vì không phải cổng 80'], answer: 1, explain: 'Số cổng chỉ là gợi ý; phải xác minh dịch vụ và phiên bản thật đang chạy.' },
+  ]}
+/>
+
+## Ghi nhớ
+
+- Quét host tìm máy bật, quét cổng tìm cổng mở, liệt kê tìm dịch vụ và phiên bản.
+- Mở / đóng / bị lọc tương ứng SYN+ACK / RST / im lặng.
+- Phiên bản dịch vụ là cầu nối sang bước tìm lỗ hổng. Liệt kê kỹ là chìa khoá.
