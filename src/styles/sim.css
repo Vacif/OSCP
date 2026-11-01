@@ -178,3 +178,42 @@
 .cvss-result { display: flex; gap: 14px; align-items: center; margin-top: 14px; flex-wrap: wrap; }
 .cvss-score { font-size: 1.8rem; font-weight: 700; font-family: var(--mono); padding: 6px 16px; border-radius: 10px; }
 .cvss-vector { display: block; font-size: 0.78rem; margin-top: 4px; word-break: break-all; }
+
+/* EnumExplorer */
+.enumx-intro { color: var(--muted); margin: 0 0 12px; }
+.enumx-list { list-style: none; padding: 0; margin: 0; display: grid; gap: 6px; }
+.enumx-list li { margin: 0; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.enumx-list li.open { border-color: var(--accent); }
+.enumx-cmd { width: 100%; display: flex; align-items: center; gap: 8px; text-align: left; background: var(--code-bg); color: var(--code-text); border: none; padding: 9px 12px; cursor: pointer; font-family: var(--mono); font-size: 0.82rem; }
+.enumx-caret { color: #7d848c; width: 1em; flex-shrink: 0; }
+.enumx-prompt { color: #7cd296; flex-shrink: 0; }
+.enumx-cmd code { background: none; color: var(--code-text); padding: 0; word-break: break-all; }
+.enumx-ran { margin-left: auto; color: #5ba85b; flex-shrink: 0; }
+.enumx-result { padding: 0; }
+.enumx-out { margin: 0; border-radius: 0; font-size: 0.8rem; max-height: 320px; overflow: auto; white-space: pre; }
+.enumx-out .enumx-hit { background: rgba(240, 176, 74, 0.22); display: inline-block; width: 100%; box-shadow: inset 3px 0 0 #e0b04a; }
+.enumx-finding { margin: 0; padding: 10px 14px; font-size: 0.9rem; border-top: 1px solid var(--line); }
+.enumx-finding.good { background: var(--good-soft); }
+.enumx-finding.warn { background: var(--warn-soft); }
+.enumx-finding.bad { background: var(--bad-soft); }
+
+/* NmapBuilder */
+.nmapb-target { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+.nmapb-flags { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 6px; }
+.nmapb-flag { display: flex; align-items: center; gap: 7px; padding: 7px 10px; border: 1px solid var(--line); border-radius: 8px; cursor: pointer; font-size: 0.85rem; }
+.nmapb-flag.on { background: var(--accent-soft); border-color: var(--accent); }
+.nmapb-flag input { accent-color: var(--accent); }
+.nmapb-flag code { background: var(--surface-2); flex-shrink: 0; }
+.nmapb-cmdlabel { font-size: 0.8rem; color: var(--muted); margin: 14px 0 4px; font-weight: 600; }
+.nmapb-cmd { margin: 0; }
+.nmapb-cmd code { color: #9fe3b3; white-space: pre-wrap; word-break: break-all; }
+.nmapb-explain { list-style: none; padding: 0; margin: 10px 0 0; display: grid; gap: 4px; font-size: 0.86rem; }
+.nmapb-explain li { padding-left: 2px; }
+.nmapb-explain code { background: var(--surface-2); }
+.nmapb-sample { margin: 0; font-size: 0.8rem; }
+
+/* SqliPlayground */
+.sqlix-label { font-size: 0.8rem; color: var(--muted); margin: 12px 0 4px; font-weight: 600; }
+.sqlix-input, .sqlix-query { margin: 0; white-space: pre-wrap; word-break: break-word; }
+.sqlix-input code { color: #f0b04a; }
+.sqlix-query code { color: #e6e6e6; }

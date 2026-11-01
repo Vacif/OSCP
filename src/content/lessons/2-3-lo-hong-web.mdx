@@ -2,77 +2,98 @@
 title: "Lỗ hổng ứng dụng web (OWASP Top 10)"
 code: "2.3"
 level: 2
-summary: "Vì sao dữ liệu người dùng chưa kiểm tra là gốc rễ của nhiều lỗ hổng web, và cách chặn chúng."
-duration: "80 phút"
+summary: "SQL injection, XSS, command injection, LFI — cơ chế, payload thật, và cách chặn tận gốc."
+duration: "95 phút"
 objectives:
   - "Hiểu nguyên lý chung: dữ liệu không tin cậy bị xử lý như lệnh"
-  - "Nhận ra cơ chế của SQL injection và XSS ở mức khái niệm"
-  - "Biết OWASP Top 10 là gì và dùng để làm gì"
-  - "Nắm cách phòng thủ cốt lõi: tách dữ liệu khỏi lệnh"
+  - "Nhận ra và thử các payload SQLi, XSS, command injection ở mức khái niệm"
+  - "Biết Burp Suite dùng để làm gì trong quy trình"
+  - "Nắm cách phòng thủ gốc: tách dữ liệu khỏi lệnh"
 ---
 import Callout from '../../components/ui/Callout.astro';
+import Terminal from '../../components/ui/Terminal.astro';
+import SqliPlayground from '../../components/sim/SqliPlayground.tsx';
 import QueryDemo from '../../components/sim/QueryDemo.tsx';
 import Quiz from '../../components/sim/Quiz.tsx';
 
 ## Hình dung trước
 
-Hãy tưởng tượng một thư ký nhận lệnh qua giấy nhớ. Ai đó viết lên giấy: "Tên khách: Lan. (Ghi chú cho thư ký: sẵn tiện xoá luôn hồ sơ phòng 3.)" Nếu thư ký không phân biệt được đâu là dữ liệu, đâu là lệnh, họ sẽ xoá nhầm hồ sơ. Rất nhiều lỗ hổng web là đúng tình huống này: chương trình nhầm dữ liệu người dùng thành lệnh.
+Hãy tưởng tượng một thư ký nhận lệnh qua giấy nhớ. Ai đó viết: "Tên khách: Lan. (Ghi chú cho thư ký: sẵn tiện xoá luôn hồ sơ phòng 3.)" Nếu thư ký không phân biệt được đâu là dữ liệu, đâu là lệnh, họ sẽ xoá nhầm hồ sơ. Rất nhiều lỗ hổng web là đúng tình huống này: chương trình nhầm dữ liệu người dùng thành lệnh.
 
 ## Kiến thức chính
 
-### OWASP Top 10
+### OWASP Top 10 và nguyên lý chung
 
-OWASP Top 10 là danh sách 10 loại rủi ro web phổ biến nhất, được cập nhật định kỳ. Nó không phải danh sách lỗi cụ thể mà là các nhóm chủ đề, ví dụ: kiểm soát truy cập hỏng, lỗi tiêm (injection), cấu hình sai. Người mới nên xem nó như bản đồ để biết nên học gì.
+OWASP Top 10 là danh sách 10 nhóm rủi ro web phổ biến nhất. Nhóm nguy hiểm nhất với người mới học khai thác là **lỗi tiêm (injection)**, có chung một gốc: **dữ liệu người dùng bị trộn vào một câu lệnh và xử lý như một phần của lệnh đó.** Lệnh có thể là truy vấn SQL, lệnh hệ điều hành, hay mã chạy trong trình duyệt người khác.
 
-### Nguyên lý chung của lỗi tiêm
+### Dữ liệu đi vào câu lệnh ra sao
 
-Phần lớn lỗi nguy hiểm có chung một gốc: **dữ liệu do người dùng nhập bị trộn lẫn vào một câu lệnh, rồi được xử lý như một phần của câu lệnh đó.** Câu lệnh có thể là truy vấn cơ sở dữ liệu (SQL injection), lệnh hệ điều hành (command injection), hoặc mã chạy trong trình duyệt người khác (XSS).
-
-### SQL injection: thấy tận mắt
-
-Mô phỏng dưới đây cho thấy chuyện gì xảy ra khi ghép thẳng dữ liệu người dùng vào câu truy vấn. Thử gõ một cái tên bình thường, rồi thử tên có dấu nháy như `O'Neil`, và so sánh hai tab:
+Quan sát cơ chế: gõ tên bình thường, rồi gõ `O'Neil`, so sánh hai tab:
 
 <QueryDemo client:visible />
 
-Điểm mấu chốt: khi nối chuỗi, dấu nháy trong dữ liệu có thể "thoát ra" và đổi cấu trúc câu lệnh. Khi dùng truy vấn tham số hoá, dữ liệu và lệnh đi riêng, nên dù người dùng gõ gì nó cũng chỉ là một giá trị.
+### SQL injection: payload thật
 
-### XSS: tiêm vào trình duyệt người khác
+Giờ thử các payload thật trên một ô đăng nhập giả:
 
-Cùng một nguyên lý, nhưng ở phía trình duyệt. Nếu một website nhận bình luận của người dùng rồi hiển thị lại nguyên văn mà không xử lý, kẻ tấn công có thể nhét đoạn mã vào bình luận. Khi người khác mở trang, đoạn mã đó chạy trong trình duyệt của họ, với danh nghĩa của họ.
+<SqliPlayground client:visible />
 
-### Mẫu chung để phòng thủ
+Điểm mấu chốt: `' OR '1'='1` làm điều kiện luôn đúng; `admin'-- -` biến phần kiểm tra mật khẩu thành chú thích; `UNION SELECT` gắn thêm truy vấn rút dữ liệu. Tất cả đều là hệ quả của việc nối chuỗi.
 
-Mọi lỗi tiêm đều chống bằng cùng một ý tưởng: **đừng để dữ liệu người dùng được hiểu là lệnh.**
+### Các loại tiêm khác, cùng một gốc
 
-- Với cơ sở dữ liệu: dùng truy vấn tham số hoá.
-- Với hiển thị ra HTML: mã hoá ký tự đặc biệt trước khi in (escape).
-- Với mọi đầu vào: kiểm tra tính hợp lệ (validation), chỉ nhận đúng dạng mong đợi.
+- **Command injection:** đầu vào đi vào lệnh hệ điều hành. Ví dụ ô "ping một IP" chạy `ping <input>`; nhập `8.8.8.8; cat /etc/passwd` khiến máy chủ chạy luôn lệnh thứ hai.
+- **XSS:** website hiển thị lại bình luận chưa xử lý; kẻ tấn công nhét `<script>...</script>`, mã chạy trong trình duyệt người khác với danh nghĩa của họ.
+- **LFI (Local File Inclusion):** tham số đường dẫn chưa kiểm tra; `?page=../../../../etc/passwd` khiến máy chủ đọc nhầm file hệ thống.
+
+### Burp Suite: kính lúp của pentester web
+
+Phần lớn kiểm thử web thật làm qua một proxy chặn như **Burp Suite**: nó đứng giữa trình duyệt và máy chủ, cho bạn xem và sửa từng request trước khi gửi. Nhờ đó bạn thử payload ở mọi tham số, kể cả những cái trình duyệt không cho sửa.
+
+<Terminal title="Ví dụ command injection nhìn thấy trên dây">
+POST /ping HTTP/1.1
+Host: 10.10.14.30
+
+ip=8.8.8.8;id
+
+--- phản hồi ---
+PING 8.8.8.8 ... 1 packets transmitted
+uid=33(www-data) gid=33(www-data) groups=33(www-data)   &lt;-- lệnh id đã chạy
+</Terminal>
+
+Phản hồi có `uid=33(www-data)` chứng tỏ lệnh `id` đã chạy trên máy chủ — một lỗ hổng command injection đã được xác nhận, và `www-data` là điểm khởi đầu để leo thang (bài 3.1).
 
 ## Góc phòng thủ
 
 <Callout type="defense">
-Lập trình viên không nên tự "lọc dấu nháy" bằng tay, vì rất dễ sót. Cách đúng là dùng cơ chế có sẵn của thư viện: truy vấn tham số hoá cho SQL, hàm escape của framework cho HTML. Ngoài ra, nguyên tắc quyền tối thiểu vẫn áp dụng: tài khoản mà website dùng để nối vào cơ sở dữ liệu chỉ nên có đúng quyền cần thiết, để nếu có bị khai thác thì thiệt hại cũng bị giới hạn.
+Mọi lỗi tiêm chống bằng cùng một ý tưởng: đừng để dữ liệu người dùng được hiểu là lệnh.
+<br />• SQL: dùng truy vấn tham số hoá (prepared statements).
+<br />• Lệnh hệ điều hành: tránh gọi shell với đầu vào người dùng; dùng API an toàn, danh sách cho phép.
+<br />• HTML/XSS: mã hoá ký tự đặc biệt khi in ra (escape), đặt Content-Security-Policy.
+<br />• LFI: không ghép đường dẫn từ đầu vào; kiểm tra và chuẩn hoá đường dẫn.
+<br />Và luôn kiểm tra đầu vào ở <strong>máy chủ</strong>, vì kẻ tấn công bỏ qua trình duyệt. Tài khoản DB mà web dùng cũng chỉ nên có quyền tối thiểu để giới hạn thiệt hại.
 </Callout>
 
 ## Lỗi người mới hay gặp
 
-- Nghĩ chỉ ô đăng nhập mới bị tiêm. Mọi đầu vào đều đáng ngờ: ô tìm kiếm, tham số trên URL, header, cookie.
-- Tin rằng lọc từ khoá là đủ. Danh sách chặn gần như luôn có kẽ hở; tách dữ liệu khỏi lệnh mới là giải pháp gốc.
-- Chỉ kiểm tra ở trình duyệt (phía client). Kẻ tấn công bỏ qua trình duyệt, nên kiểm tra bắt buộc phải làm ở máy chủ.
+- Nghĩ chỉ ô đăng nhập mới bị tiêm. Mọi đầu vào đều đáng ngờ: ô tìm kiếm, tham số URL, header, cookie.
+- Tin rằng lọc từ khoá là đủ. Danh sách chặn gần như luôn có kẽ hở; tách dữ liệu khỏi lệnh mới là gốc.
+- Chỉ kiểm tra ở trình duyệt. Dùng Burp để thấy và sửa request thật mà trình duyệt giấu.
 
 ## Kiểm tra nhanh
 
 <Quiz
   client:visible
   questions={[
-    { q: 'Gốc rễ chung của các lỗi tiêm (injection) là gì?', options: ['Mật khẩu yếu', 'Dữ liệu người dùng bị xử lý như một phần của lệnh', 'Mạng chậm'], answer: 1, explain: 'Khi dữ liệu và lệnh không được tách bạch, dữ liệu có thể đổi ý nghĩa của lệnh.' },
-    { q: 'Cách phòng SQL injection tốt nhất là gì?', options: ['Cấm người dùng gõ dấu nháy', 'Dùng truy vấn tham số hoá', 'Ẩn ô tìm kiếm'], answer: 1, explain: 'Truy vấn tham số hoá tách dữ liệu khỏi câu lệnh một cách triệt để.' },
-    { q: 'Kiểm tra đầu vào chỉ ở trình duyệt có đủ không?', options: ['Đủ', 'Không, phải kiểm tra ở máy chủ vì kẻ tấn công bỏ qua trình duyệt', 'Tuỳ website'], answer: 1, explain: 'Kẻ tấn công gửi dữ liệu thẳng tới máy chủ, nên kiểm tra ở máy chủ là bắt buộc.' },
+    { q: "Payload admin'-- - bỏ qua đăng nhập bằng cách nào?", options: ['Đoán đúng mật khẩu', 'Biến phần kiểm tra mật khẩu thành chú thích', 'Làm sập máy chủ'], answer: 1, explain: 'Dấu -- mở đầu chú thích SQL, phần kiểm tra mật khẩu phía sau bị bỏ qua.' },
+    { q: 'Phản hồi chứa `uid=33(www-data)` sau khi gửi `ip=8.8.8.8;id` chứng tỏ điều gì?', options: ['Máy chủ bị sập', 'Command injection đã chạy được lệnh trên máy chủ', 'Không có gì bất thường'], answer: 1, explain: 'Lệnh id chạy và trả kết quả nghĩa là đầu vào đã bị thực thi như lệnh hệ điều hành.' },
+    { q: 'Burp Suite giúp gì trong kiểm thử web?', options: ['Tăng tốc website', 'Đứng giữa để xem và sửa từng request trước khi gửi', 'Vá lỗ hổng tự động'], answer: 1, explain: 'Là proxy chặn, Burp cho phép thử payload ở mọi tham số, kể cả cái trình duyệt không cho sửa.' },
+    { q: 'Cách phòng SQL injection tốt nhất là gì?', options: ['Cấm gõ dấu nháy', 'Dùng truy vấn tham số hoá', 'Ẩn ô tìm kiếm'], answer: 1, explain: 'Tham số hoá tách dữ liệu khỏi câu lệnh một cách triệt để.' },
   ]}
 />
 
 ## Ghi nhớ
 
-- OWASP Top 10 là bản đồ các rủi ro web phổ biến.
-- Lỗi tiêm xảy ra khi dữ liệu người dùng bị hiểu thành lệnh.
-- Phòng thủ gốc: tách dữ liệu khỏi lệnh, kiểm tra đầu vào ở máy chủ.
+- Lỗi tiêm = dữ liệu người dùng bị hiểu thành lệnh; SQLi, command injection, XSS, LFI cùng gốc.
+- Payload kinh điển: `' OR '1'='1`, `admin'-- -`, `; id`, `../../../../etc/passwd`.
+- Burp để thử; phòng thủ gốc là tách dữ liệu khỏi lệnh và kiểm tra ở máy chủ.

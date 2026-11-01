@@ -10,6 +10,7 @@ objectives:
   - "Bắt đầu thói quen ghi chép có cấu trúc"
 ---
 import Callout from '../../components/ui/Callout.astro';
+import Terminal from '../../components/ui/Terminal.astro';
 import ConceptMap from '../../components/sim/ConceptMap.tsx';
 import Quiz from '../../components/sim/Quiz.tsx';
 
@@ -49,6 +50,29 @@ Chọn một công cụ ghi chú bạn thích (Obsidian, CherryTree, Joplin ho�
 ```
 
 Mục "Đã thử" giúp bạn khỏi làm lại cùng một việc ba lần lúc 3 giờ sáng.
+
+Một trang ghi chú thật, khi đang làm dở, trông như thế này:
+
+<Terminal title="Ghi chú một máy đang làm dở (Markdown)">
+# 10.10.14.30  (Linux)
+## Dịch vụ
+- 22  OpenSSH 7.6p1
+- 80  Apache 2.4.29  → /admin (401), /backup (301)
+- 445 Samba 4.7.6   → share "backups" đọc được (null session)
+
+## Thông tin đáng chú ý
+- enum4linux: user jdoe, svc_backup
+- config.php trong share backups: db_pass = "S3cr3t!2024"
+
+## Đã thử
+- [x] hydra SSH với db_pass → svc_backup đăng nhập ĐƯỢC
+- [ ] searchsploit samba 4.7 → chưa thử
+
+## Hướng tiếp theo
+- vào bằng svc_backup, chạy sudo -l + linpeas
+</Terminal>
+
+Mỗi dòng có đánh dấu `[x]`/`[ ]` để biết đã thử gì. Khi bế tắc, đọc lại chính trang này thường tìm ra chỗ còn bỏ sót.
 
 ## Sơ đồ: vòng lặp pentest
 

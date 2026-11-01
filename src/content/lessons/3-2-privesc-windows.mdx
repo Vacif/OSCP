@@ -2,98 +2,132 @@
 title: "Leo thang đặc quyền trên Windows"
 code: "3.2"
 level: 3
-summary: "Từ người dùng thường tới SYSTEM, qua dịch vụ cấu hình sai và thông tin để lộ. Mức khái niệm."
-duration: "70 phút"
+summary: "Từ người dùng thường tới SYSTEM qua dịch vụ cấu hình sai, đặc quyền token và thông tin lộ — lệnh thật."
+duration: "90 phút"
 objectives:
-  - "Hiểu mô hình token và đặc quyền trên Windows"
-  - "Nhận ra các dạng cấu hình dịch vụ sai dẫn tới leo thang"
-  - "Biết những nơi Windows hay để lộ thông tin đăng nhập"
+  - "Liệt kê leo thang trên Windows bằng winPEAS và lệnh tay"
+  - "Nhận ra unquoted service path, quyền dịch vụ lỏng, AlwaysInstallElevated"
+  - "Hiểu lạm dụng SeImpersonate (họ Potato) ở mức khái niệm"
   - "Nắm cách phòng thủ tương ứng"
 ---
 import Callout from '../../components/ui/Callout.astro';
+import Terminal from '../../components/ui/Terminal.astro';
+import EnumExplorer from '../../components/sim/EnumExplorer.tsx';
 import ConceptMap from '../../components/sim/ConceptMap.tsx';
-import Checklist from '../../components/sim/Checklist.tsx';
 import Quiz from '../../components/sim/Quiz.tsx';
 
 ## Hình dung trước
 
-Trên Windows, mỗi tiến trình mang theo một "thẻ đeo" ghi rõ nó là ai và được làm gì. Leo thang đặc quyền là tìm cách để tiến trình của bạn đổi sang một thẻ đeo quyền cao hơn, thường là SYSTEM. Giống bài 3.1 nhưng với luật chơi của Windows.
+Trên Windows, mỗi tiến trình mang theo một "thẻ đeo" (token) ghi nó là ai và được làm gì. Leo thang là tìm cách đổi sang một thẻ đeo quyền cao hơn, thường là SYSTEM. Giống bài 3.1 nhưng với luật chơi của Windows.
 
 ## Kiến thức chính
 
 ### Token và đặc quyền
 
-Khi bạn đăng nhập, Windows tạo một *token* mô tả tài khoản và các đặc quyền của bạn. Mỗi tiến trình chạy kèm một token. Một số đặc quyền đặc biệt mạnh: nếu một tài khoản thường vô tình được cấp các đặc quyền này, đó có thể là đường tới SYSTEM.
+Khi đăng nhập, Windows tạo một token mô tả tài khoản và đặc quyền. Một số đặc quyền rất mạnh: nếu một tài khoản thường vô tình có chúng (như `SeImpersonatePrivilege`, `SeBackupPrivilege`), đó có thể là đường tới SYSTEM.
 
-### Các dạng cấu hình sai thường gặp
+### Liệt kê leo thang
 
-- **Đường dẫn dịch vụ không đặt trong ngoặc kép (unquoted service path):** khi đường dẫn tới chương trình của một dịch vụ có dấu cách mà không để trong ngoặc, Windows có thể hiểu nhầm và chạy một file khác do kẻ tấn công đặt vào.
-- **Quyền trên dịch vụ quá rộng:** người dùng thường được phép sửa cấu hình một dịch vụ chạy quyền SYSTEM, nên có thể trỏ nó sang chạy chương trình của mình.
-- **File chương trình của dịch vụ ghi được:** dịch vụ chạy quyền cao nhưng file của nó lại cho người thường sửa, nên chỉ cần thay file.
-- **Thông tin đăng nhập để lộ:** mật khẩu trong file cấu hình, trong registry, trong các file cài đặt tự động.
-- **Phần mềm hoặc Windows thiếu bản vá:** có CVE leo thang đã biết.
+Chạy **winPEAS** để gom nhanh, nhưng hiểu từng kiểm tra. Bấm xem các output mẫu:
 
-### Mô hình token
+<EnumExplorer
+  client:visible
+  title="Liệt kê leo thang trên một máy Windows"
+  intro="Mẫu từ một máy lab. Dòng tô vàng là manh mối."
+  prompt="C:\>"
+  items={[
+    {
+      cmd: 'whoami /priv',
+      output: [
+        { text: 'Privilege Name           State' },
+        { text: 'SeImpersonatePrivilege   Enabled', hit: true },
+        { text: 'SeChangeNotifyPrivilege  Enabled' },
+      ],
+      finding: 'SeImpersonatePrivilege Enabled. Đặc quyền này cho phép mạo danh một client sau xác thực — họ kỹ thuật "Potato" (PrintSpoofer, JuicyPotato) lợi dụng nó để thành SYSTEM. Rất hay gặp trên tài khoản dịch vụ web.',
+      tone: 'bad',
+    },
+    {
+      cmd: 'wmic service get name,pathname | findstr /i /v "C:\\\\Windows"',
+      output: [
+        { text: 'MyApp   C:\\Program Files\\My App\\service.exe' },
+        { text: 'Backup  C:\\Program Files\\Backup Svc\\run.exe', hit: true },
+      ],
+      finding: 'Đường dẫn "C:\\Program Files\\Backup Svc\\run.exe" có dấu cách mà không đặt trong ngoặc kép. Windows có thể thử chạy "C:\\Program.exe" hoặc "C:\\Program Files\\Backup.exe" trước — nếu bạn ghi được file vào đó, dịch vụ (quyền SYSTEM) chạy file của bạn.',
+      tone: 'bad',
+    },
+    {
+      cmd: 'reg query HKLM\\SOFTWARE\\Policies\\Microsoft\\Windows\\Installer /v AlwaysInstallElevated',
+      output: [
+        { text: '    AlwaysInstallElevated    REG_DWORD    0x1', hit: true },
+      ],
+      finding: 'AlwaysInstallElevated = 1 (và cả bản HKCU) nghĩa là mọi gói .msi được cài với quyền SYSTEM. Đóng một .msi chứa payload của mình rồi cài là lên SYSTEM.',
+      tone: 'bad',
+    },
+    {
+      cmd: 'dir /s *vnc.ini *unattend.xml *.kdbx 2>nul',
+      output: [
+        { text: 'C:\\Windows\\Panther\\unattend.xml', hit: true },
+      ],
+      finding: 'File cài đặt tự động unattend.xml thường chứa mật khẩu quản trị (đôi khi mã hoá base64 yếu). Nơi kinh điển để tìm thông tin đăng nhập.',
+      tone: 'warn',
+    },
+  ]}
+/>
+
+### Đường từ người dùng thường tới SYSTEM
 
 <ConceptMap
   client:visible
-  title="Đường từ người dùng thường tới SYSTEM"
+  title="Các đường leo thang trên Windows"
   width={640}
   height={300}
   nodes={[
-    { id: 'user', label: 'Người dùng thường', x: 120, y: 150, detail: 'Token quyền thấp. Điểm khởi đầu sau khi vào được máy.' },
-    { id: 'svc', label: 'Dịch vụ cấu hình sai', x: 340, y: 70, tone: 'warn', detail: 'Dịch vụ chạy quyền SYSTEM nhưng có sơ hở: đường dẫn không ngoặc kép, quyền sửa quá rộng, hoặc file ghi được.' },
-    { id: 'cred', label: 'Thông tin để lộ', x: 340, y: 230, tone: 'warn', detail: 'Mật khẩu trong file cấu hình, registry, hoặc file cài đặt tự động. Có thể là mật khẩu admin.' },
-    { id: 'system', label: 'SYSTEM', x: 560, y: 150, tone: 'accent', detail: 'Quyền cao nhất trên máy. Từ đây có thể đọc mọi dữ liệu và chuẩn bị lan sang máy khác (bài 3.3, 3.4).' },
+    { id: 'user', label: 'Người dùng thường', x: 120, y: 150, detail: 'Token quyền thấp. Điểm khởi đầu sau khi vào máy, ví dụ tài khoản dịch vụ web.' },
+    { id: 'svc', label: 'Dịch vụ cấu hình sai', x: 340, y: 70, tone: 'warn', detail: 'Unquoted path, quyền sửa dịch vụ lỏng, hoặc file ghi được. Dịch vụ chạy SYSTEM.' },
+    { id: 'priv', label: 'Đặc quyền token', x: 340, y: 150, tone: 'warn', detail: 'SeImpersonate (họ Potato), SeBackup, SeRestore... lạm dụng để đọc file hoặc thành SYSTEM.' },
+    { id: 'cred', label: 'Thông tin để lộ', x: 340, y: 230, tone: 'warn', detail: 'unattend.xml, registry, file cấu hình phần mềm. Có thể là mật khẩu admin.' },
+    { id: 'system', label: 'SYSTEM', x: 560, y: 150, tone: 'accent', detail: 'Quyền cao nhất. Từ đây đọc mọi dữ liệu và chuẩn bị lan sang máy khác (bài 3.3, 3.4).' },
   ]}
   edges={[
-    { from: 'user', to: 'svc', label: 'lợi dụng' },
-    { from: 'user', to: 'cred', label: 'tìm thấy' },
+    { from: 'user', to: 'svc' },
+    { from: 'user', to: 'priv' },
+    { from: 'user', to: 'cred' },
     { from: 'svc', to: 'system' },
+    { from: 'priv', to: 'system' },
     { from: 'cred', to: 'system' },
   ]}
 />
 
-<Checklist
-  client:visible
-  title="Liệt kê để tìm đường leo thang (Windows)"
-  storageKey="privesc-win"
-  items={[
-    { label: 'Tôi là ai, thuộc nhóm nào, có đặc quyền gì' },
-    { label: 'Thông tin hệ thống: phiên bản Windows, bản vá đã cài' },
-    { label: 'Các dịch vụ: có đường dẫn không ngoặc kép không' },
-    { label: 'Các dịch vụ: tôi có quyền sửa cấu hình hoặc file của dịch vụ nào không' },
-    { label: 'Có file cài đặt tự động hoặc cấu hình nào chứa mật khẩu không' },
-    { label: 'Registry có lưu mật khẩu hoặc mục tự chạy nào đáng chú ý không' },
-    { label: 'Phần mềm đang cài có phiên bản dính CVE leo thang không' },
-  ]}
-/>
+<Callout type="note">
+Với SeImpersonate, công cụ như <code>PrintSpoofer</code> biến đặc quyền đó thành shell SYSTEM bằng một lệnh. Ở cấp này cần nhớ: thấy SeImpersonate Enabled trên tài khoản dịch vụ là một tín hiệu leo thang mạnh.
+</Callout>
 
 ## Góc phòng thủ
 
 <Callout type="defense">
-Phòng thủ: luôn đặt đường dẫn dịch vụ trong ngoặc kép; đặt quyền chặt trên cấu hình và file của dịch vụ để người thường không sửa được; không chạy dịch vụ bằng quyền cao hơn mức cần; không để mật khẩu trong file cài đặt tự động hay registry dạng chữ rõ; và cập nhật Windows đều đặn. Công cụ kiểm tra cấu hình của chính nhà cung cấp có thể giúp phát hiện các sơ hở này trước khi kẻ tấn công thấy.
+Phòng thủ: luôn đặt đường dẫn dịch vụ trong ngoặc kép; đặt quyền chặt trên cấu hình và file của dịch vụ; không chạy dịch vụ bằng quyền cao hơn cần; không bật AlwaysInstallElevated; xoá mật khẩu khỏi unattend.xml sau khi cài; hạn chế cấp SeImpersonate/SeBackup. Cập nhật Windows đều. Chính winPEAS cũng là công cụ đội phòng thủ dùng để tự tìm các sơ hở này.
 </Callout>
 
 ## Lỗi người mới hay gặp
 
-- Chỉ nghĩ tới mã khai thác nhân Windows mà bỏ qua các cấu hình dịch vụ, vốn phổ biến hơn nhiều.
-- Không kiểm tra đặc quyền của token hiện tại.
-- Bỏ qua registry và các file cài đặt tự động, những nơi hay lộ mật khẩu.
+- Chỉ nghĩ tới mã khai thác nhân Windows, bỏ qua cấu hình dịch vụ vốn phổ biến hơn.
+- Không đọc `whoami /priv` — nơi lộ SeImpersonate và các đặc quyền khác.
+- Bỏ qua registry và unattend.xml, những nơi hay lộ mật khẩu.
 
 ## Kiểm tra nhanh
 
 <Quiz
   client:visible
   questions={[
-    { q: 'Token trên Windows mô tả điều gì?', options: ['Tốc độ mạng', 'Tài khoản và các đặc quyền của một tiến trình', 'Phiên bản phần mềm'], answer: 1, explain: 'Token xác định tiến trình đang chạy với danh nghĩa ai và được làm gì.' },
-    { q: 'Vì sao đường dẫn dịch vụ không đặt trong ngoặc kép lại nguy hiểm?', options: ['Vì trông xấu', 'Vì Windows có thể hiểu nhầm và chạy một file khác do kẻ tấn công đặt', 'Vì làm chậm máy'], answer: 1, explain: 'Dấu cách trong đường dẫn không ngoặc có thể khiến Windows chạy nhầm chương trình.' },
-    { q: 'Đích đến thường gặp của leo thang trên Windows là tài khoản nào?', options: ['Guest', 'SYSTEM', 'Người dùng thường'], answer: 1, explain: 'SYSTEM có quyền cao nhất trên máy.' },
+    { q: 'SeImpersonatePrivilege Enabled trên một tài khoản dịch vụ gợi ý điều gì?', options: ['Không có gì', 'Có thể leo thang lên SYSTEM bằng kỹ thuật họ Potato', 'Tài khoản bị khoá'], answer: 1, explain: 'Đặc quyền mạo danh này bị PrintSpoofer/JuicyPotato lợi dụng để thành SYSTEM.' },
+    { q: 'Vì sao "unquoted service path" nguy hiểm?', options: ['Trông xấu', 'Windows có thể chạy nhầm một file khác do kẻ tấn công đặt vào', 'Làm chậm máy'], answer: 1, explain: 'Dấu cách trong đường dẫn không ngoặc có thể khiến Windows chạy nhầm chương trình.' },
+    { q: 'AlwaysInstallElevated = 1 cho phép điều gì?', options: ['Cài mọi .msi với quyền SYSTEM', 'Tắt Windows Update', 'Xoá người dùng'], answer: 0, explain: 'Mọi gói .msi được cài với quyền cao, nên một .msi payload sẽ chạy bằng SYSTEM.' },
+    { q: 'File unattend.xml thường chứa gì đáng giá?', options: ['Ảnh nền', 'Mật khẩu quản trị dùng khi cài tự động', 'Nhật ký web'], answer: 1, explain: 'Cấu hình cài đặt tự động hay nhúng mật khẩu admin, đôi khi chỉ mã hoá base64 yếu.' },
   ]}
 />
 
 ## Ghi nhớ
 
-- Mỗi tiến trình mang token; leo thang là đổi sang token quyền cao hơn (SYSTEM).
-- Dạng phổ biến: dịch vụ cấu hình sai, file dịch vụ ghi được, mật khẩu để lộ, thiếu bản vá.
-- Phòng thủ xoay quanh quyền chặt trên dịch vụ và không lưu mật khẩu dạng chữ rõ.
+- Liệt kê: `whoami /priv`, dịch vụ (unquoted path, quyền lỏng), registry (AlwaysInstallElevated), file cấu hình.
+- Ba họ đường đi: dịch vụ sai, đặc quyền token (Potato), mật khẩu lộ — đều dẫn tới SYSTEM.
+- winPEAS tự động hoá; hiểu từng kiểm tra để biết nó đang chỉ gì.

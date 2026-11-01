@@ -11,6 +11,7 @@ objectives:
   - "Dựng được lab gồm một máy tấn công và ít nhất một máy mục tiêu"
 ---
 import Callout from '../../components/ui/Callout.astro';
+import Terminal from '../../components/ui/Terminal.astro';
 import ConceptMap from '../../components/sim/ConceptMap.tsx';
 import Checklist from '../../components/sim/Checklist.tsx';
 import Quiz from '../../components/sim/Quiz.tsx';
@@ -87,6 +88,31 @@ Snapshot là ảnh chụp trạng thái máy ảo tại một thời điểm. Tr
     { label: 'Từ máy tấn công, kiểm tra thấy được máy mục tiêu', hint: 'Bài 1.1 sẽ giải thích chi tiết địa chỉ IP.' },
   ]}
 />
+
+## Thực hành: kiểm tra và xác minh lab
+
+**Xác minh file tải về** trước khi cài, để chắc không bị chỉnh sửa:
+
+<Terminal title="So khớp checksum của file ISO/OVA">
+kali@lab:~$ sha256sum kali-linux-2024.1-installer-amd64.iso
+a1b2c3d4...  kali-linux-2024.1-installer-amd64.iso
+# So chuỗi này với giá trị SHA256 công bố trên trang chính thức. Khác nhau = không dùng.
+</Terminal>
+
+**Sau khi cài xong, kiểm tra máy tấn công thấy máy mục tiêu** (nhớ các lệnh ở bài 1.1):
+
+<Terminal title="Từ máy Kali, xác nhận thấy mục tiêu trong mạng cô lập">
+kali@lab:~$ ip addr show eth1        # card nối vào mạng cô lập
+    inet 10.10.14.7/24 ... eth1
+
+kali@lab:~$ ping -c2 10.10.14.20     # máy mục tiêu
+64 bytes from 10.10.14.20: icmp_seq=1 ttl=64 time=0.5 ms
+
+kali@lab:~$ nmap -sn 10.10.14.0/24   # quét xem có máy nào sống
+Nmap scan report for 10.10.14.20     # mục tiêu đã sẵn sàng
+</Terminal>
+
+Nếu ping được và nmap thấy máy mục tiêu, lab của bạn đã hoạt động. Nếu không: kiểm tra hai máy có cùng một mạng cô lập không, và máy mục tiêu đã bật chưa.
 
 ## Góc phòng thủ
 

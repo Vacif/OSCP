@@ -2,21 +2,22 @@
 title: "Scripting căn bản"
 code: "1.6"
 level: 1
-summary: "Tự động hoá việc lặp đi lặp lại bằng Bash, Python và PowerShell, đủ dùng cho pentest."
-duration: "70 phút"
+summary: "Tự động hoá việc lặp lại bằng Bash, Python, PowerShell — với các đoạn script thật dùng được ngay trong lab."
+duration: "80 phút"
 objectives:
-  - "Hiểu biến, vòng lặp và điều kiện ở mức cơ bản"
-  - "Đọc hiểu một script ngắn làm gì"
-  - "Biết mỗi ngôn ngữ hợp với tình huống nào"
-  - "Viết được một vòng lặp đơn giản để lặp qua một danh sách"
+  - "Hiểu biến, vòng lặp, điều kiện ở mức dùng được"
+  - "Viết vòng lặp quét nhanh một dải IP bằng Bash"
+  - "Viết đoạn kiểm tra cổng bằng Python"
+  - "Đọc hiểu script khai thác người khác viết trước khi chạy"
 ---
 import Callout from '../../components/ui/Callout.astro';
+import Terminal from '../../components/ui/Terminal.astro';
 import CodeStepper from '../../components/sim/CodeStepper.tsx';
 import Quiz from '../../components/sim/Quiz.tsx';
 
 ## Hình dung trước
 
-Nếu phải kiểm tra 254 địa chỉ IP xem máy nào bật, bạn sẽ không gõ tay 254 lần. Bạn viết một vòng lặp làm hộ. Scripting là như vậy: dạy máy làm việc lặp lại để bạn tập trung vào phần cần suy nghĩ.
+Nếu phải kiểm tra 254 địa chỉ IP xem máy nào bật, bạn sẽ không gõ tay 254 lần mà viết một vòng lặp làm hộ. Scripting là vậy: dạy máy làm việc lặp lại để bạn tập trung vào phần cần suy nghĩ.
 
 ## Kiến thức chính
 
@@ -24,23 +25,15 @@ Nếu phải kiểm tra 254 địa chỉ IP xem máy nào bật, bạn sẽ khô
 
 | Ngôn ngữ | Mạnh ở | Dùng khi |
 |---|---|---|
-| Bash | Nối các lệnh Linux lại với nhau | Tự động hoá nhanh trên Linux |
-| Python | Logic phức tạp, xử lý dữ liệu, mạng | Viết công cụ, chỉnh sửa mã khai thác |
-| PowerShell | Điều khiển Windows và Active Directory | Làm việc trên máy Windows |
+| Bash | Nối các lệnh Linux | Tự động hoá nhanh trên Linux |
+| Python | Logic, mạng, xử lý dữ liệu | Viết công cụ, sửa mã khai thác |
+| PowerShell | Điều khiển Windows và AD | Làm việc trên máy Windows |
 
-Bạn không cần giỏi cả ba ngay. Đọc hiểu được script người khác viết đã là một kỹ năng rất giá trị, vì phần lớn công cụ khai thác công khai đều viết bằng các ngôn ngữ này.
+Đọc hiểu script người khác viết đã là kỹ năng rất giá trị, vì phần lớn mã khai thác công khai viết bằng các ngôn ngữ này.
 
 ### Ba viên gạch chung
 
-Mọi ngôn ngữ trên đều có:
-
-- **Biến:** chỗ chứa một giá trị, ví dụ `cong = 22`.
-- **Điều kiện:** làm việc A nếu đúng, việc B nếu sai.
-- **Vòng lặp:** lặp lại một việc cho từng phần tử trong danh sách.
-
-### Chạy thử từng dòng
-
-Dưới đây là một đoạn Python kiểm tra danh sách cổng và in ra cổng nào "thú vị". Bấm "Tiếp" để chạy từng dòng, xem biến thay đổi và màn hình in gì:
+**Biến** (chứa giá trị), **điều kiện** (làm A nếu đúng, B nếu sai), **vòng lặp** (lặp cho từng phần tử). Chạy thử từng dòng một đoạn Python phân loại cổng:
 
 <CodeStepper
   client:visible
@@ -48,42 +41,76 @@ Dưới đây là một đoạn Python kiểm tra danh sách cổng và in ra c�
   lang="python"
   code={`cong_mo = [22, 80, 445]\nthu_vi = [445, 3389]\nfor c in cong_mo:\n    if c in thu_vi:\n        print("Đáng chú ý:", c)\n    else:\n        print("Bình thường:", c)`}
   steps={[
-    { line: 1, vars: { cong_mo: '[22, 80, 445]' }, note: 'Tạo danh sách các cổng đang mở tìm thấy trên một máy.' },
-    { line: 2, vars: { cong_mo: '[22, 80, 445]', thu_vi: '[445, 3389]' }, note: 'Danh sách các cổng mà ta quan tâm hơn (chia sẻ file, màn hình từ xa).' },
-    { line: 3, vars: { cong_mo: '[22, 80, 445]', thu_vi: '[445, 3389]', c: '22' }, note: 'Vòng lặp lấy phần tử đầu tiên: c = 22.' },
-    { line: 4, vars: { c: '22' }, note: '22 có nằm trong danh sách thú vị không? Không.' },
-    { line: 6, vars: { c: '22' }, out: 'Bình thường: 22', note: 'Nên chạy nhánh else và in ra.' },
-    { line: 3, vars: { c: '80' }, note: 'Vòng lặp lấy phần tử tiếp theo: c = 80.' },
-    { line: 4, vars: { c: '80' }, note: '80 có trong danh sách thú vị không? Không.' },
-    { line: 6, vars: { c: '80' }, out: 'Bình thường: 80', note: 'Lại chạy nhánh else.' },
+    { line: 1, vars: { cong_mo: '[22, 80, 445]' }, note: 'Danh sách cổng mở tìm thấy trên một máy.' },
+    { line: 2, vars: { cong_mo: '[22, 80, 445]', thu_vi: '[445, 3389]' }, note: 'Các cổng ta quan tâm hơn.' },
+    { line: 3, vars: { cong_mo: '[22, 80, 445]', thu_vi: '[445, 3389]', c: '22' }, note: 'Lấy phần tử đầu: c = 22.' },
+    { line: 4, vars: { c: '22' }, note: '22 có trong danh sách thú vị không? Không.' },
+    { line: 6, vars: { c: '22' }, out: 'Bình thường: 22', note: 'Chạy nhánh else.' },
+    { line: 3, vars: { c: '80' }, note: 'Phần tử tiếp: c = 80.' },
+    { line: 4, vars: { c: '80' }, note: '80 thú vị không? Không.' },
+    { line: 6, vars: { c: '80' }, out: 'Bình thường: 80', note: 'Nhánh else.' },
     { line: 3, vars: { c: '445' }, note: 'Phần tử cuối: c = 445.' },
-    { line: 4, vars: { c: '445' }, note: '445 có trong danh sách thú vị không? Có.' },
-    { line: 5, vars: { c: '445' }, out: 'Đáng chú ý: 445', note: 'Chạy nhánh if và in ra. Hết danh sách, vòng lặp kết thúc.' },
+    { line: 4, vars: { c: '445' }, note: '445 thú vị không? Có.' },
+    { line: 5, vars: { c: '445' }, out: 'Đáng chú ý: 445', note: 'Chạy nhánh if. Hết danh sách, kết thúc.' },
   ]}
 />
 
-### Một vòng lặp Bash tương đương
+## Thực hành: script thật dùng trong lab
+
+**Quét nhanh một dải IP bằng Bash** (ping sweep) khi chưa muốn dùng nmap:
+
+<Terminal title="Ping sweep bằng vòng lặp Bash">
+kali@lab:~$ for i in $(seq 1 254); do
+&gt;   ping -c1 -W1 10.10.14.$i &amp;&gt;/dev/null &amp;&amp; echo "10.10.14.$i sống"
+&gt; done
+10.10.14.1 sống
+10.10.14.7 sống
+10.10.14.20 sống
+10.10.14.30 sống
+</Terminal>
+
+`seq 1 254` sinh số 1..254; với mỗi số, ping một gói (`-c1`), chờ tối đa 1 giây (`-W1`), im lặng, và nếu thành công thì in ra. Đây đúng là ý tưởng vòng lặp ở trên, áp vào việc thật.
+
+**Kiểm tra một cổng bằng Python** (khi muốn tự viết thay vì dùng công cụ):
+
+<Terminal title="Kiểm tra cổng mở bằng Python">
+kali@lab:~$ python3 -c '
+import socket
+for port in (22, 80, 445, 3389):
+    s = socket.socket()
+    s.settimeout(1)
+    if s.connect_ex(("10.10.14.30", port)) == 0:
+        print(port, "mở")
+    s.close()'
+22 mở
+80 mở
+</Terminal>
+
+`connect_ex` trả về 0 khi kết nối thành công — nghĩa là cổng mở. Đây là phiên bản tối giản của thứ mà nmap làm.
+
+**Một pattern hay dùng: lặp qua danh sách từ** (ví dụ thử danh sách người dùng):
 
 ```bash
-for c in 22 80 445; do
-  echo "Đang xử lý cổng $c"
-done
+while read user; do
+  echo "Đang thử: $user"
+  # ... lệnh kiểm tra với $user ...
+done < users.txt
 ```
 
-<Callout type="note">
-Ở bài 2.2 bạn sẽ dùng đúng ý tưởng này để quét một dải IP, và ở bài 4.3 để tự động hoá các bước kiểm tra lặp lại.
+<Callout type="warn">
+Luôn đọc hiểu script tải từ mạng trước khi chạy, nhất là mã khai thác chạy quyền cao. Một đoạn "exploit" có thể lặng lẽ làm hại chính máy bạn, hoặc gửi dữ liệu đi đâu đó. Mở ra đọc: nó kết nối tới đâu, ghi file gì, chạy lệnh gì.
 </Callout>
 
 ## Góc phòng thủ
 
 <Callout type="defense">
-Bên phòng thủ cũng viết script, nhưng để giám sát: quét định kỳ xem có cổng lạ nào mở ra, kiểm tra file cấu hình có bị đổi không, đọc nhật ký tìm dấu hiệu bất thường. Cùng một kỹ năng, phục vụ hai mục đích.
+Bên phòng thủ cũng viết script, nhưng để giám sát: quét định kỳ tìm cổng lạ mới mở, kiểm tra file cấu hình bị đổi (so hash), đọc nhật ký tìm bất thường. Cùng một kỹ năng, phục vụ hai mục đích. Ping sweep và quét cổng hàng loạt từ một nguồn cũng chính là thứ hệ thống phát hiện xâm nhập để ý.
 </Callout>
 
 ## Lỗi người mới hay gặp
 
-- Chép script trên mạng về chạy mà không đọc hiểu nó làm gì. Luôn đọc trước khi chạy, nhất là script chạy với quyền cao.
-- Cố viết công cụ hoàn hảo trước khi làm bài. Script trong pentest thường ngắn và dùng một lần.
+- Chép script trên mạng về chạy mà không đọc. Luôn đọc trước, nhất là script quyền cao.
+- Cố viết công cụ hoàn hảo trước khi làm bài; script trong pentest thường ngắn, dùng một lần.
 - Học thuộc cú pháp thay vì hiểu ý tưởng. Biến, điều kiện, vòng lặp giống nhau ở mọi ngôn ngữ.
 
 ## Kiểm tra nhanh
@@ -91,14 +118,14 @@ Bên phòng thủ cũng viết script, nhưng để giám sát: quét định k�
 <Quiz
   client:visible
   questions={[
-    { q: 'Ngôn ngữ nào hợp nhất để tự động hoá trên máy Windows và Active Directory?', options: ['Bash', 'PowerShell', 'Không có cái nào'], answer: 1, explain: 'PowerShell được tích hợp sâu vào Windows.' },
-    { q: 'Vòng lặp dùng để làm gì?', options: ['Lưu một giá trị', 'Lặp lại một việc cho nhiều phần tử', 'Mã hoá dữ liệu'], answer: 1, explain: 'Vòng lặp chạy cùng một đoạn việc cho từng phần tử trong danh sách.' },
-    { q: 'Trước khi chạy một script tải từ mạng về với quyền cao, nên làm gì?', options: ['Chạy ngay cho nhanh', 'Đọc hiểu nó làm gì', 'Đổi tên file'], answer: 1, explain: 'Luôn đọc hiểu trước, vì script quyền cao có thể gây hại cho chính máy của bạn.' },
+    { q: 'Trong vòng lặp ping sweep, `-c1 -W1` có tác dụng gì?', options: ['Gửi 1 gói và chờ tối đa 1 giây', 'Quét 1 cổng', 'Chạy 1 lần duy nhất'], answer: 0, explain: '-c1 gửi 1 gói ICMP, -W1 đặt thời gian chờ 1 giây để vòng lặp không bị treo.' },
+    { q: 'Trong Python, `connect_ex(...)` trả về 0 nghĩa là gì?', options: ['Cổng đóng', 'Kết nối thành công, cổng mở', 'Có lỗi'], answer: 1, explain: 'connect_ex trả 0 khi kết nối được, tức cổng đang mở.' },
+    { q: 'Trước khi chạy một script exploit tải từ mạng với quyền cao, nên làm gì?', options: ['Chạy ngay cho nhanh', 'Đọc hiểu nó kết nối đâu, ghi/chạy gì', 'Đổi tên file'], answer: 1, explain: 'Script quyền cao có thể gây hại cho chính máy bạn; luôn đọc trước.' },
   ]}
 />
 
 ## Ghi nhớ
 
 - Bash cho Linux, Python cho logic và công cụ, PowerShell cho Windows.
-- Biến, điều kiện, vòng lặp là ba viên gạch chung.
-- Đọc hiểu script quan trọng hơn viết script hoàn hảo; luôn đọc trước khi chạy.
+- Vòng lặp Bash làm ping sweep; vài dòng Python kiểm tra cổng — đều là bản thu nhỏ của công cụ lớn.
+- Đọc hiểu script quan trọng hơn viết hoàn hảo; luôn đọc trước khi chạy.

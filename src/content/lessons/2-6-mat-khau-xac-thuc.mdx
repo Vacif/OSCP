@@ -2,76 +2,114 @@
 title: "Mật khẩu và xác thực"
 code: "2.6"
 level: 2
-summary: "Vì sao website không nên lưu mật khẩu gốc, hash và salt là gì, và điều gì làm nên mật khẩu mạnh."
-duration: "55 phút"
+summary: "Hash, salt, định dạng /etc/shadow, và cách bẻ khoá ngoại tuyến bằng hashcat/john, thử trực tuyến bằng hydra."
+duration: "70 phút"
 objectives:
-  - "Phân biệt mã hoá và băm (hash)"
-  - "Hiểu salt chống lại kiểu tấn công nào"
-  - "Nắm vì sao độ dài quan trọng hơn ký tự đặc biệt"
-  - "Biết các lớp bảo vệ xác thực ngoài mật khẩu"
+  - "Phân biệt mã hoá và băm; hiểu salt chống gì"
+  - "Đọc định dạng hash trong /etc/shadow"
+  - "Hiểu bẻ khoá ngoại tuyến (hashcat/john) và wordlist"
+  - "Phân biệt tấn công trực tuyến và ngoại tuyến"
 ---
 import Callout from '../../components/ui/Callout.astro';
+import Terminal from '../../components/ui/Terminal.astro';
 import HashDemo from '../../components/sim/HashDemo.tsx';
 import Quiz from '../../components/sim/Quiz.tsx';
 
 ## Hình dung trước
 
-Một thủ thư giỏi không giữ bản sao chìa khoá nhà của từng độc giả. Thay vào đó họ giữ một dấu hiệu để nhận ra đúng người, mà từ dấu hiệu đó không làm lại được chìa. Băm mật khẩu là ý tưởng này: website giữ một "dấu vân tay" của mật khẩu, không giữ mật khẩu gốc.
+Một thủ thư giỏi không giữ bản sao chìa khoá nhà của từng độc giả. Họ giữ một dấu hiệu để nhận ra đúng người, mà từ dấu hiệu đó không làm lại được chìa. Băm mật khẩu là ý tưởng này: website giữ "dấu vân tay" của mật khẩu, không giữ mật khẩu gốc.
 
 ## Kiến thức chính
 
 ### Băm khác mã hoá
 
-- **Mã hoá** là hai chiều: có khoá thì giải ngược lại được. Dùng khi cần đọc lại dữ liệu, ví dụ HTTPS.
-- **Băm (hash)** là một chiều: từ mật khẩu ra chuỗi băm thì dễ, nhưng từ chuỗi băm suy ngược về mật khẩu thì không có đường tắt. Dùng để lưu mật khẩu.
+- **Mã hoá** hai chiều: có khoá thì giải ngược lại được (dùng cho HTTPS).
+- **Băm (hash)** một chiều: từ mật khẩu ra chuỗi băm thì dễ, ngược lại không có đường tắt (dùng lưu mật khẩu).
 
-Khi bạn đăng nhập, website băm mật khẩu bạn vừa nhập rồi so với chuỗi băm đã lưu. Nếu khớp thì đúng, mà website vẫn không cần biết mật khẩu gốc.
+Khi đăng nhập, website băm mật khẩu bạn nhập rồi so với chuỗi đã lưu. Khớp thì đúng, mà website không cần biết mật khẩu gốc.
 
-### Vì sao cần salt
+### Salt
 
-Nếu hai người dùng cùng một mật khẩu, và website băm trơn, thì hai chuỗi băm sẽ giống hệt nhau. Kẻ đọc được cơ sở dữ liệu sẽ thấy ngay, và có thể dùng bảng tính sẵn (hash của hàng triệu mật khẩu phổ biến) để tra ngược rất nhanh.
-
-Salt là một chuỗi ngẫu nhiên, khác nhau cho mỗi người, được thêm vào trước khi băm. Thử trong mô phỏng: gõ cùng một mật khẩu, bật và tắt salt, xem hai chuỗi băm:
+Nếu hai người cùng mật khẩu và băm trơn, hai chuỗi băm giống hệt nhau, và kẻ tấn công dùng bảng tính sẵn tra ngược rất nhanh. Salt là chuỗi ngẫu nhiên khác nhau cho mỗi người, thêm vào trước khi băm. Thử bật/tắt salt:
 
 <HashDemo client:visible />
 
-Với salt riêng cho mỗi người, bảng tính sẵn trở nên vô dụng và kẻ tấn công phải xử lý từng tài khoản một.
+### Đọc một dòng /etc/shadow
+
+Khi chiếm được quyền đọc `/etc/shadow` (bài 3.1), bạn thấy các dòng như:
+
+<Terminal title="Giải phẫu một dòng shadow">
+jdoe:$6$xyzSALT$hoRtE9k...rẤtDài:19000:0:99999:7:::
+       |  |      |
+       |  |      +-- phần hash
+       |  +-- salt
+       +-- $6$ = thuật toán (SHA-512). $1$=MD5, $5$=SHA-256, $y$=yescrypt
+</Terminal>
+
+Ký hiệu `$6$` cho biết thuật toán, giúp bạn chọn đúng chế độ khi bẻ khoá.
+
+## Thực hành: bẻ khoá và thử mật khẩu
+
+### Ngoại tuyến: có hash rồi, đoán ngược mật khẩu
+
+Khi đã có hash, việc bẻ khoá diễn ra trên **máy của bạn**, không chạm mục tiêu nên không bị khoá tài khoản hay ghi log. Dùng **hashcat** hoặc **john**, với một danh sách mật khẩu (wordlist) như `rockyou.txt` có sẵn trong Kali:
+
+<Terminal title="hashcat bẻ hash SHA-512 bằng wordlist">
+kali@lab:~$ hashcat -m 1800 hash.txt /usr/share/wordlists/rockyou.txt
+$6$xyzSALT$hoRtE9k...:Summer2024!
+
+kali@lab:~$ # hoặc dùng john
+kali@lab:~$ john --wordlist=/usr/share/wordlists/rockyou.txt hash.txt
+Summer2024!      (jdoe)
+</Terminal>
+
+`-m 1800` là mã chế độ cho SHA-512 crypt. Hashcat thử lần lượt từng mật khẩu trong rockyou, băm lên và so với hash — khớp thì ra mật khẩu gốc. Nếu không chắc loại hash, dùng `hashid` hoặc `hash-identifier`.
+
+### Trực tuyến: thử mật khẩu thẳng vào dịch vụ
+
+Khi chưa có hash, bạn thử mật khẩu trực tiếp vào dịch vụ bằng **hydra**. Cách này ồn (ghi log, có thể khoá tài khoản), nên hiệu quả hơn khi "spray": thử **một** mật khẩu khả dĩ cho **nhiều** tài khoản.
+
+<Terminal title="hydra thử mật khẩu qua SSH">
+kali@lab:~$ hydra -L users.txt -p 'Summer2024!' ssh://10.10.14.30
+[22][ssh] host: 10.10.14.30   login: svc_backup   password: Summer2024!
+</Terminal>
+
+Danh sách `users.txt` chính là tên người dùng gom được từ bài 2.1 và 2.2 (theHarvester, enum4linux).
+
+<Callout type="warn">
+Thử mật khẩu hàng loạt vào dịch vụ thật chỉ được làm trong lab hoặc khi có phép. Nó gây khoá tài khoản và ồn ào trên hệ thống giám sát.
+</Callout>
 
 ### Điều gì làm mật khẩu mạnh
 
-Điều quan trọng nhất là **độ dài** và **tính khó đoán**, chứ không phải nhồi ký tự đặc biệt. Một câu dài gồm nhiều từ ngẫu nhiên thường mạnh hơn và dễ nhớ hơn một chuỗi ngắn rối rắm. Lý do: mỗi ký tự thêm vào nhân số tổ hợp cần thử lên nhiều lần.
-
-Ngược lại, mật khẩu nằm trong các danh sách phổ biến (như "123456", "matkhau") thì yếu bất kể trông có vẻ phức tạp, vì kẻ tấn công thử các danh sách này trước tiên.
-
-### Ngoài mật khẩu
-
-Mật khẩu chỉ là một yếu tố. Xác thực hai lớp (2FA) thêm một yếu tố thứ hai: một mã đổi theo thời gian, hoặc một thiết bị vật lý. Khi đó, mật khẩu lộ vẫn chưa đủ để đăng nhập.
+Quan trọng nhất là **độ dài** và **tính khó đoán**, không phải nhồi ký tự đặc biệt. Mật khẩu nằm trong rockyou (như "Summer2024!") bị thử đầu tiên nên yếu bất kể trông phức tạp. Một câu dài nhiều từ ngẫu nhiên vừa mạnh vừa dễ nhớ hơn.
 
 ## Góc phòng thủ
 
 <Callout type="defense">
-Nguyên tắc cho người xây hệ thống: không bao giờ lưu mật khẩu gốc; dùng hàm băm chuyên cho mật khẩu (loại cố ý chạy chậm để cản tấn công thử hàng loạt) kèm salt riêng cho mỗi người; đặt giới hạn số lần đăng nhập sai; và bật 2FA. Cho người dùng: dùng mật khẩu dài, mỗi nơi một mật khẩu khác nhau, và nếu được thì dùng trình quản lý mật khẩu.
+Cho người xây hệ thống: không lưu mật khẩu gốc; dùng hàm băm chuyên cho mật khẩu cố ý chạy chậm (bcrypt, yescrypt, argon2) kèm salt riêng mỗi người, để bẻ khoá ngoại tuyến đắt hơn nhiều; giới hạn số lần đăng nhập sai và khoá tạm để cản hydra; bật 2FA. Cho người dùng: mật khẩu dài, mỗi nơi một mật khẩu khác, dùng trình quản lý mật khẩu.
 </Callout>
 
 ## Lỗi người mới hay gặp
 
-- Nhầm băm với mã hoá. Mật khẩu lưu dạng mã hoá (giải ngược được) là một thiết kế sai.
-- Tin rằng ký tự đặc biệt quan trọng hơn độ dài. Độ dài mới là yếu tố quyết định nhất.
-- Quên rằng salt không phải bí mật; nó có thể lưu cạnh hash, tác dụng của nó là làm mỗi hash khác nhau, không phải để giấu.
+- Nhầm băm với mã hoá. Mật khẩu lưu dạng mã hoá (giải ngược được) là thiết kế sai.
+- Chọn sai chế độ hashcat (`-m`) cho loại hash, rồi tưởng không bẻ được.
+- Tin ký tự đặc biệt quan trọng hơn độ dài. Độ dài mới là yếu tố quyết định.
 
 ## Kiểm tra nhanh
 
 <Quiz
   client:visible
   questions={[
-    { q: 'Vì sao băm phù hợp để lưu mật khẩu còn mã hoá thì không?', options: ['Băm nhanh hơn', 'Băm là một chiều, không giải ngược về mật khẩu gốc', 'Băm tốn ít chỗ hơn'], answer: 1, explain: 'Tính một chiều nghĩa là lộ cơ sở dữ liệu cũng không trực tiếp lấy lại mật khẩu gốc.' },
-    { q: 'Salt chống lại kiểu tấn công nào là chính?', options: ['Tấn công từ chối dịch vụ', 'Bảng hash tính sẵn cho mật khẩu phổ biến', 'Nghe lén mạng'], answer: 1, explain: 'Salt riêng mỗi người làm các bảng tính sẵn mất tác dụng.' },
-    { q: 'Yếu tố nào quan trọng nhất cho độ mạnh mật khẩu?', options: ['Có ký tự đặc biệt', 'Độ dài và tính khó đoán', 'Có chữ in hoa'], answer: 1, explain: 'Độ dài làm số tổ hợp tăng theo cấp số nhân; tính khó đoán tránh các danh sách phổ biến.' },
+    { q: 'Vì sao bẻ khoá ngoại tuyến "an toàn" hơn cho kẻ tấn công so với thử trực tuyến?', options: ['Nhanh hơn', 'Diễn ra trên máy họ, không chạm mục tiêu nên không bị khoá tài khoản hay ghi log', 'Không cần wordlist'], answer: 1, explain: 'Có hash rồi thì việc đoán ngược làm cục bộ, mục tiêu không hề biết.' },
+    { q: '`$6$` ở đầu một dòng shadow cho biết điều gì?', options: ['Độ dài mật khẩu', 'Thuật toán băm là SHA-512', 'Số lần đăng nhập'], answer: 1, explain: '$6$ = SHA-512 crypt; ký hiệu này giúp chọn đúng chế độ bẻ khoá.' },
+    { q: 'Salt chống lại kiểu tấn công nào là chính?', options: ['Từ chối dịch vụ', 'Bảng hash tính sẵn cho mật khẩu phổ biến', 'Nghe lén mạng'], answer: 1, explain: 'Salt riêng mỗi người làm các bảng tính sẵn mất tác dụng.' },
+    { q: 'Kỹ thuật "password spraying" là gì?', options: ['Thử mọi mật khẩu cho một tài khoản', 'Thử một mật khẩu khả dĩ cho nhiều tài khoản', 'Xoá mật khẩu'], answer: 1, explain: 'Spray thử một mật khẩu cho nhiều tài khoản để tránh khoá từng tài khoản.' },
   ]}
 />
 
 ## Ghi nhớ
 
-- Băm là một chiều (lưu mật khẩu); mã hoá là hai chiều (bảo vệ dữ liệu cần đọc lại).
-- Salt riêng mỗi người vô hiệu hoá bảng hash tính sẵn.
-- Độ dài và tính khó đoán quyết định độ mạnh; 2FA là lớp bảo vệ thêm quan trọng.
+- Băm một chiều (lưu mật khẩu); mã hoá hai chiều (dữ liệu cần đọc lại).
+- `$6$salt$hash` trong shadow: biết thuật toán để chọn chế độ hashcat/john.
+- Ngoại tuyến (hashcat/john + rockyou) kín đáo; trực tuyến (hydra, spray) ồn; độ dài quyết định độ mạnh.

@@ -2,93 +2,124 @@
 title: "Linux căn bản"
 code: "1.4"
 level: 1
-summary: "Di chuyển trong terminal, đọc file, và hiểu hệ thống quyền rwx mà bạn sẽ gặp suốt lộ trình."
-duration: "75 phút"
+summary: "Di chuyển trong terminal, quyền rwx, và bộ lệnh tìm kiếm mà bạn sẽ dùng để săn lỗ hổng leo thang."
+duration: "85 phút"
 objectives:
-  - "Dùng được các lệnh di chuyển và đọc file cơ bản"
-  - "Hiểu cấu trúc thư mục Linux"
-  - "Đọc và tính được quyền file dạng rwx và dạng số"
-  - "Giải thích vì sao quyền sai là nguồn gốc của nhiều lỗ hổng"
+  - "Dùng thành thạo lệnh di chuyển, đọc file, tìm kiếm"
+  - "Đọc và tính quyền rwx, nhận ra quyền nguy hiểm"
+  - "Dùng find và grep để săn file nhạy cảm"
+  - "Hiểu các file quan trọng mà pentester luôn kiểm tra"
 ---
 import Callout from '../../components/ui/Callout.astro';
+import Terminal from '../../components/ui/Terminal.astro';
 import FakeTerminal from '../../components/sim/FakeTerminal.tsx';
 import PermissionViz from '../../components/sim/PermissionViz.tsx';
 import Quiz from '../../components/sim/Quiz.tsx';
 
 ## Hình dung trước
 
-Terminal giống như nhắn tin cho máy tính: bạn gõ một dòng, máy làm đúng dòng đó. Nghe khô khan nhưng lại nhanh và chính xác hơn bấm chuột, nhất là khi làm việc trên máy ở xa không có giao diện.
+Terminal giống như nhắn tin cho máy tính: bạn gõ một dòng, máy làm đúng dòng đó. Nhanh và chính xác hơn bấm chuột, nhất là khi làm việc trên máy ở xa không có giao diện — đúng tình huống của pentest.
 
 ## Kiến thức chính
 
-### Cấu trúc thư mục
+### Cấu trúc thư mục và file quan trọng
 
-Linux xếp mọi thứ dưới một gốc chung là `/`. Vài thư mục cần nhớ:
+Linux xếp mọi thứ dưới gốc `/`. Những nơi pentester luôn ngó tới:
 
-| Thư mục | Chứa gì |
-|---|---|
-| `/home/tên` | Dữ liệu cá nhân của mỗi người dùng |
-| `/etc` | File cấu hình hệ thống |
-| `/etc/passwd` | Danh sách người dùng (đọc được bởi mọi người) |
-| `/etc/shadow` | Mật khẩu đã băm (chỉ root đọc) |
-| `/tmp` | File tạm, ai cũng ghi được |
-| `/root` | Thư mục riêng của tài khoản quản trị root |
+| Đường dẫn | Chứa gì | Vì sao quan tâm |
+|---|---|---|
+| `/etc/passwd` | Danh sách người dùng | Ai cũng đọc được; biết có tài khoản nào |
+| `/etc/shadow` | Hash mật khẩu | Chỉ root; đọc được là leo thang xong |
+| `/home/*/.ssh/` | Khoá SSH | Khoá riêng để lộ = đăng nhập không cần mật khẩu |
+| `/var/www/` | Mã nguồn web | Hay chứa mật khẩu cơ sở dữ liệu |
+| `/opt`, `/srv` | Phần mềm cài thêm | Script, cấu hình tuỳ biến dễ sai |
+| `~/.bash_history` | Lịch sử lệnh | Người dùng gõ nhầm mật khẩu vào đây |
 
 ### Vài lệnh để sống sót
 
-- `pwd` — tôi đang ở thư mục nào
-- `ls -l` — liệt kê file kèm quyền
-- `cd thu-muc` — chuyển thư mục (`cd ..` để lùi ra)
-- `cat file` — in nội dung file
-- `whoami` / `id` — tôi là ai, thuộc nhóm nào
+`pwd` (đang ở đâu), `ls -la` (liệt kê kèm file ẩn và quyền), `cd` (chuyển thư mục), `cat`/`less` (đọc file), `whoami`/`id` (tôi là ai, nhóm nào), `find` và `grep` (tìm kiếm — xem phần thực hành).
 
 ### Thử ngay
 
-Terminal dưới đây chạy hoàn toàn trong trình duyệt, với hệ thống file giả. Làm lần lượt các nhiệm vụ bên phải. Chú ý chuyện gì xảy ra khi bạn thử đọc `/etc/shadow`:
+Terminal dưới đây chạy trong trình duyệt với hệ thống file giả. Làm lần lượt các nhiệm vụ bên phải, chú ý khi thử đọc `/etc/shadow`:
 
 <FakeTerminal client:visible />
 
 ### Quyền file
 
-Mỗi file có quyền cho ba nhóm: **chủ sở hữu**, **nhóm**, và **người khác**. Mỗi nhóm có ba quyền:
-
-- `r` (read) — đọc
-- `w` (write) — ghi
-- `x` (execute) — chạy (với thư mục: đi vào được)
-
-Quyền thường viết dạng số: r = 4, w = 2, x = 1, cộng lại cho từng nhóm. Bấm các ô dưới đây để thấy quan hệ giữa dạng chữ và dạng số:
+Mỗi file có quyền cho ba nhóm (chủ sở hữu, nhóm, người khác), mỗi nhóm có `r`(4) `w`(2) `x`(1). Bấm các ô để thấy quan hệ chữ và số:
 
 <PermissionViz client:visible />
 
 <Callout type="note">
-Chuyển qua tab "Thư mục" để thấy quyền có nghĩa khác: với thư mục, `x` nghĩa là được đi vào, còn `r` chỉ là xem được danh sách tên file.
+Chuyển tab "Thư mục": với thư mục, `x` nghĩa là được đi vào (cd), còn `r` chỉ là xem được danh sách tên file.
 </Callout>
+
+## Thực hành: săn file nhạy cảm bằng find và grep
+
+Đây là những lệnh bạn sẽ gõ ngay sau khi vào được một máy, để tìm đường leo thang (chủ đề bài 3.1). Chạy trong lab:
+
+**Tìm file có bit SUID** (chạy với quyền chủ sở hữu, thường là root):
+
+<Terminal title="find các file SUID bất thường">
+kali@lab:~$ find / -perm -4000 -type f 2>/dev/null
+/usr/bin/passwd
+/usr/bin/sudo
+/usr/bin/find        &lt;-- SUID trên find là bất thường, có thể leo thang
+</Terminal>
+
+`2>/dev/null` vứt bỏ hàng loạt thông báo "Permission denied" cho đỡ rối. `find` xuất hiện trong danh sách SUID là dấu hiệu đáng đào sâu (bài 3.1 giải thích vì sao).
+
+**Tìm mật khẩu để lộ trong file cấu hình:**
+
+<Terminal title="grep tìm chuỗi password trong mã nguồn web">
+kali@lab:~$ grep -riI "password" /var/www/ 2>/dev/null
+/var/www/html/config.php:$db_pass = "S3cr3t!2024";
+/var/www/html/config.php:$db_user = "webapp";
+</Terminal>
+
+Một mật khẩu cơ sở dữ liệu trong `config.php`. Bước tiếp theo luôn là: thử mật khẩu đó cho các tài khoản khác (tái sử dụng mật khẩu là đường leo thang rất hay gặp).
+
+**Đọc những nơi hay lộ thông tin:**
+
+<Terminal title="Xem lịch sử lệnh và quyền sudo">
+kali@lab:~$ cat ~/.bash_history
+mysql -u root -pRootPass123
+cd /var/www
+
+kali@lab:~$ sudo -l
+User webapp may run the following commands on this host:
+    (root) NOPASSWD: /usr/bin/vim
+</Terminal>
+
+Người dùng đã gõ cả mật khẩu MySQL vào dòng lệnh (lưu lại trong history). Và `sudo -l` cho thấy được chạy `vim` với quyền root không cần mật khẩu — một đường leo thang kinh điển (bài 3.1).
 
 ## Góc phòng thủ
 
 <Callout type="defense">
-Rất nhiều lỗ hổng leo thang đặc quyền (bài 3.1) bắt nguồn từ quyền đặt sai: một file cấu hình chứa mật khẩu nhưng ai cũng đọc được, hoặc một script chạy với quyền root nhưng người thường lại sửa được nội dung. Nguyên tắc phòng thủ là quyền tối thiểu: chỉ cấp đúng mức cần thiết, không hơn. Lệnh để kiểm tra là `ls -l`, để sửa là `chmod` và `chown`.
+Nhiều lỗ hổng leo thang bắt nguồn từ quyền đặt sai và thông tin để lộ. Phòng thủ: áp dụng quyền tối thiểu (`chmod`, `chown` cho đúng mức), gỡ bit SUID không cần thiết, không lưu mật khẩu dạng chữ rõ trong file cấu hình (dùng biến môi trường hoặc kho bí mật), và tắt lưu lịch sử cho phiên nhạy cảm. Lệnh rà soát của chính quản trị viên cũng chính là `find / -perm -4000` và `grep -r`.
 </Callout>
 
 ## Lỗi người mới hay gặp
 
-- Gõ lệnh với `sudo` cho mọi thứ vì ngại lỗi quyền, vô tình tạo file mà người thường không sửa được.
-- Nhầm `r` trên thư mục với quyền đọc file bên trong. Đọc được tên file chưa chắc đọc được nội dung.
-- Sợ terminal. Cứ gõ sai thoải mái trong lab; gần như mọi lệnh đọc đều vô hại.
+- Quên `2>/dev/null` khiến output `find` ngập thông báo lỗi, bỏ sót dòng quan trọng.
+- Chỉ đọc file cấu hình chính mà bỏ qua `.bash_history`, `.ssh`, file backup (`.bak`, `~`).
+- Thấy mật khẩu rồi dừng, không thử nó cho các tài khoản khác.
 
 ## Kiểm tra nhanh
 
 <Quiz
   client:visible
   questions={[
-    { q: 'Quyền rwxr-x--- ứng với con số nào?', options: ['750', '740', '755'], answer: 0, explain: 'rwx = 7, r-x = 5, --- = 0, vậy là 750.' },
-    { q: 'File /etc/shadow thường không cho người dùng thường đọc, vì sao?', options: ['Vì nó rỗng', 'Vì nó chứa mật khẩu đã băm', 'Vì nó là thư mục'], answer: 1, explain: 'shadow chứa hash mật khẩu, để lộ sẽ giúp kẻ tấn công thử bẻ khoá ngoại tuyến.' },
-    { q: 'Với một thư mục, quyền x nghĩa là gì?', options: ['Được xoá thư mục', 'Được đi vào thư mục', 'Được đổi tên thư mục'], answer: 1, explain: 'x trên thư mục cho phép cd vào trong; xoá hay đổi tên lại phụ thuộc quyền w của thư mục cha.' },
+    { q: 'Lệnh nào tìm tất cả file SUID trên hệ thống?', options: ['find / -perm -4000 -type f', 'ls -l /', 'grep SUID /etc/passwd'], answer: 0, explain: '-perm -4000 lọc các file có bit SUID; đây là bước đầu khi tìm đường leo thang.' },
+    { q: 'Quyền rwxr-x--- ứng với con số nào?', options: ['750', '740', '755'], answer: 0, explain: 'rwx=7, r-x=5, ---=0 → 750.' },
+    { q: 'Tìm thấy mật khẩu DB trong config.php, việc nên làm tiếp theo là gì?', options: ['Bỏ qua vì chỉ là mật khẩu DB', 'Thử mật khẩu đó cho các tài khoản khác (SSH, root...)', 'Xoá file đi'], answer: 1, explain: 'Người dùng hay dùng lại mật khẩu; một mật khẩu lộ có thể mở nhiều cửa.' },
+    { q: 'Vì sao `~/.bash_history` đáng đọc?', options: ['Vì nó chứa ảnh', 'Vì người dùng có thể đã gõ mật khẩu thẳng vào dòng lệnh', 'Vì nó là file hệ thống'], answer: 1, explain: 'Lệnh như `mysql -pMatKhau` lưu cả mật khẩu vào lịch sử.' },
   ]}
 />
 
 ## Ghi nhớ
 
-- Mọi thứ nằm dưới gốc `/`; `/etc` chứa cấu hình, `/home` chứa dữ liệu người dùng.
-- Quyền chia ba nhóm, mỗi nhóm có rwx; r=4, w=2, x=1.
-- Quyền đặt sai là một trong những nguồn lỗ hổng phổ biến nhất.
+- Mọi thứ dưới `/`; nhớ các file vàng: passwd, shadow, .ssh, config web, .bash_history.
+- Quyền chia ba nhóm, mỗi nhóm rwx; r=4, w=2, x=1.
+- `find / -perm -4000` và `grep -ri password` là hai lệnh săn leo thang bạn sẽ dùng mãi.

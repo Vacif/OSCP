@@ -2,15 +2,16 @@
 title: "Active Directory: kiến trúc"
 code: "3.4"
 level: 3
-summary: "Cách doanh nghiệp quản lý tập trung hàng trăm máy và người dùng, và Kerberos đăng nhập ra sao."
-duration: "75 phút"
+summary: "Domain, forest, Kerberos, và cách liệt kê AD bằng ldapsearch, rpcclient, BloodHound."
+duration: "85 phút"
 objectives:
-  - "Hiểu domain, domain controller và cây thư mục"
-  - "Phân biệt domain, tree và forest"
-  - "Nắm luồng đăng nhập Kerberos ở mức khái niệm"
-  - "Hiểu vì sao AD là trọng tâm của pentest doanh nghiệp"
+  - "Hiểu domain, domain controller, forest, trust"
+  - "Nắm luồng vé Kerberos (TGT, TGS)"
+  - "Liệt kê AD bằng công cụ thật"
+  - "Hiểu vì sao AD là trọng tâm pentest doanh nghiệp"
 ---
 import Callout from '../../components/ui/Callout.astro';
+import Terminal from '../../components/ui/Terminal.astro';
 import ConceptMap from '../../components/sim/ConceptMap.tsx';
 import SequenceDiagram from '../../components/sim/SequenceDiagram.tsx';
 import Quiz from '../../components/sim/Quiz.tsx';
@@ -21,14 +22,11 @@ Một công ty 500 người không thể tạo tài khoản riêng rẽ trên t�
 
 ## Kiến thức chính
 
-### Domain và domain controller
+### Domain, domain controller, forest
 
-- **Domain** là một nhóm người dùng, máy tính và tài nguyên được quản lý chung.
-- **Domain Controller (DC)** là máy chủ giữ cơ sở dữ liệu AD và xử lý đăng nhập. Chiếm được DC gần như là chiếm cả domain, nên nó là mục tiêu giá trị nhất.
-
-Khi một nhân viên đăng nhập vào máy của họ bằng tài khoản công ty, chính DC là nơi xác thực.
-
-### Domain, tree, forest
+- **Domain** — nhóm người dùng, máy tính, tài nguyên quản lý chung.
+- **Domain Controller (DC)** — máy chủ giữ cơ sở dữ liệu AD và xử lý đăng nhập. Chiếm được DC gần như chiếm cả domain, nên là mục tiêu giá trị nhất.
+- **Forest** — tập hợp một hay nhiều domain; là **ranh giới an ninh** ngoài cùng.
 
 <ConceptMap
   client:visible
@@ -36,11 +34,11 @@ Khi một nhân viên đăng nhập vào máy của họ bằng tài khoản cô
   width={640}
   height={300}
   nodes={[
-    { id: 'forest', label: 'Forest', sub: 'ranh giới an ninh ngoài cùng', x: 320, y: 55, tone: 'accent', detail: 'Tập hợp một hoặc nhiều domain dùng chung cấu hình nền. Forest là ranh giới an ninh thật sự của AD.' },
-    { id: 'd1', label: 'cong-ty.vn', sub: 'domain gốc', x: 180, y: 160, detail: 'Domain gốc của forest.' },
-    { id: 'd2', label: 'chi-nhanh.cong-ty.vn', sub: 'domain con', x: 470, y: 160, detail: 'Domain con, cùng cây với domain gốc. Domain gốc và các con tạo thành một tree.' },
-    { id: 'u', label: 'Người dùng, máy, nhóm', x: 180, y: 250, detail: 'Các đối tượng bên trong một domain: tài khoản người dùng, máy tính, nhóm quyền.' },
-    { id: 'trust', label: 'Quan hệ tin cậy', x: 470, y: 250, tone: 'warn', detail: 'Các domain có thể tin cậy nhau để người dùng domain này truy cập tài nguyên domain kia. Quan hệ tin cậy cấu hình rộng tay là một rủi ro.' },
+    { id: 'forest', label: 'Forest', sub: 'ranh giới an ninh', x: 320, y: 55, tone: 'accent', detail: 'Tập hợp domain dùng chung cấu hình nền. Forest là ranh giới an ninh thật sự của AD.' },
+    { id: 'd1', label: 'megacorp.lab', sub: 'domain gốc', x: 180, y: 160, detail: 'Domain gốc của forest.' },
+    { id: 'd2', label: 'dev.megacorp.lab', sub: 'domain con', x: 470, y: 160, detail: 'Domain con, cùng cây với domain gốc.' },
+    { id: 'u', label: 'Người dùng, máy, nhóm', x: 180, y: 250, detail: 'Các đối tượng trong domain: tài khoản, máy tính, nhóm quyền.' },
+    { id: 'trust', label: 'Quan hệ tin cậy', x: 470, y: 250, tone: 'warn', detail: 'Domain có thể tin cậy nhau để dùng chéo tài nguyên. Trust rộng tay là rủi ro.' },
   ]}
   edges={[
     { from: 'forest', to: 'd1' },
@@ -51,50 +49,86 @@ Khi một nhân viên đăng nhập vào máy của họ bằng tài khoản cô
   ]}
 />
 
-### Kerberos: đăng nhập trong AD
+### Kerberos: vé thay cho mật khẩu
 
-AD dùng giao thức Kerberos để xác thực. Ý tưởng cốt lõi: thay vì gửi mật khẩu khắp nơi, người dùng lấy các "vé" (ticket) từ DC rồi dùng vé để truy cập dịch vụ. Xem luồng ở mức khái niệm:
+AD dùng Kerberos: thay vì gửi mật khẩu khắp nơi, người dùng lấy **vé** từ DC rồi dùng vé để truy cập dịch vụ.
 
 <SequenceDiagram
   client:visible
   title="Luồng Kerberos (đã đơn giản hoá)"
   actors={['Người dùng', 'Domain Controller', 'Dịch vụ']}
   steps={[
-    { from: 0, to: 1, label: 'Tôi là ai + yêu cầu vé', note: 'Người dùng chứng minh danh tính với DC (dựa trên mật khẩu, nhưng mật khẩu không bị gửi đi dạng rõ).' },
-    { from: 1, to: 0, label: 'Vé tổng (TGT)', note: 'DC cấp một "vé tổng" (Ticket Granting Ticket). Nó như tấm thẻ ra vào chung, chứng minh bạn đã đăng nhập.', tone: 'good' },
-    { from: 0, to: 1, label: 'Dùng TGT xin vé dịch vụ', note: 'Khi cần dùng một dịch vụ cụ thể (ví dụ máy chủ file), người dùng đưa TGT ra xin một vé riêng cho dịch vụ đó.' },
-    { from: 1, to: 0, label: 'Vé dịch vụ', note: 'DC cấp vé dịch vụ, chỉ dùng được cho đúng dịch vụ đã xin.', tone: 'good' },
-    { from: 0, to: 2, label: 'Trình vé dịch vụ', note: 'Người dùng đưa vé cho dịch vụ. Dịch vụ kiểm tra vé hợp lệ và cho vào, mà không cần hỏi lại DC.', tone: 'good' },
+    { from: 0, to: 1, label: 'Yêu cầu vé (AS-REQ)', note: 'Người dùng chứng minh danh tính với DC, dựa trên mật khẩu nhưng không gửi mật khẩu dạng rõ.' },
+    { from: 1, to: 0, label: 'Vé tổng TGT', note: 'DC cấp Ticket Granting Ticket — thẻ chung chứng minh đã đăng nhập.', tone: 'good' },
+    { from: 0, to: 1, label: 'Dùng TGT xin vé dịch vụ (TGS-REQ)', note: 'Khi cần một dịch vụ cụ thể, đưa TGT ra xin vé riêng.' },
+    { from: 1, to: 0, label: 'Vé dịch vụ TGS', note: 'DC cấp vé chỉ dùng cho đúng dịch vụ đó.', tone: 'good' },
+    { from: 0, to: 2, label: 'Trình vé TGS', note: 'Dịch vụ kiểm tra vé hợp lệ và cho vào, không cần hỏi lại DC.', tone: 'good' },
   ]}
 />
 
-Hiểu luồng này giúp bạn nắm được vì sao ở bài 3.5, nhiều kỹ thuật tấn công AD xoay quanh việc lạm dụng các loại vé này.
+Nhiều kỹ thuật tấn công AD (bài 3.5) xoay quanh việc lạm dụng chính các loại vé này.
+
+## Thực hành: liệt kê AD
+
+Với một tài khoản domain thường (dù quyền thấp), bạn đã liệt kê được rất nhiều.
+
+**rpcclient** qua SMB để lấy người dùng và nhóm:
+
+<Terminal title="rpcclient liệt kê người dùng domain">
+kali@lab:~$ rpcclient -U 'jdoe%Summer2024!' 10.10.14.50
+rpcclient $> enumdomusers
+user:[Administrator] rid:[0x1f4]
+user:[jdoe]          rid:[0x44f]
+user:[svc_sql]       rid:[0x45a]      # tài khoản dịch vụ, chú ý
+</Terminal>
+
+**ldapsearch** truy vấn trực tiếp cơ sở dữ liệu AD qua LDAP:
+
+<Terminal title="ldapsearch lấy tài khoản dịch vụ có SPN">
+kali@lab:~$ ldapsearch -x -H ldap://10.10.14.50 -D 'jdoe@megacorp.lab' -w 'Summer2024!' \
+  -b 'dc=megacorp,dc=lab' "(servicePrincipalName=*)" sAMAccountName
+sAMAccountName: svc_sql      # có SPN → có thể bị Kerberoasting (bài 3.5)
+</Terminal>
+
+**BloodHound** gom toàn bộ quan hệ và vẽ **đường đi tấn công** thành đồ thị:
+
+<Terminal title="SharpHound/BloodHound thu thập dữ liệu">
+kali@lab:~$ bloodhound-python -u jdoe -p 'Summer2024!' -d megacorp.lab -c All -ns 10.10.14.50
+INFO: Found 42 users, 18 groups, 5 computers
+INFO: Compressed data written to 20240101_bloodhound.zip
+# Nạp file .zip vào giao diện BloodHound để xem đường đi tới Domain Admin
+</Terminal>
+
+<Callout type="note">
+BloodHound là công cụ quan trọng nhất của pentest AD hiện đại: nó biến hàng nghìn quan hệ quyền hạn thành một đồ thị, và có nút "Shortest path to Domain Admins" chỉ thẳng đường đi. Bài 3.5 giải thích các đường đi đó.
+</Callout>
 
 ## Góc phòng thủ
 
 <Callout type="defense">
-Bảo vệ AD bắt đầu từ việc bảo vệ domain controller như tài sản quý nhất: hạn chế ai đăng nhập được vào DC, giám sát chặt. Ngoài ra: giữ số tài khoản quyền cao ở mức tối thiểu, rà soát các quan hệ tin cậy giữa domain, và theo dõi các mẫu yêu cầu vé bất thường. Vì forest là ranh giới an ninh, việc nối hai forest bằng quan hệ tin cậy cần được cân nhắc kỹ.
+Bảo vệ domain controller như tài sản quý nhất: hạn chế ai đăng nhập được vào DC, giám sát chặt. Giữ số tài khoản quyền cao ở mức tối thiểu; rà soát quan hệ tin cậy giữa domain; theo dõi các mẫu yêu cầu vé bất thường. Vì forest là ranh giới an ninh, nối hai forest bằng trust cần cân nhắc kỹ. Đội phòng thủ cũng chạy BloodHound để tự tìm và cắt đường đi trước.
 </Callout>
 
 ## Lỗi người mới hay gặp
 
 - Nhầm domain với forest. Forest mới là ranh giới an ninh ngoài cùng.
-- Nghĩ chiếm một máy trong domain là xong. Mục tiêu thật thường là domain controller.
-- Bỏ qua quan hệ tin cậy giữa các domain, vốn có thể mở đường đi bất ngờ.
+- Nghĩ chiếm một máy trong domain là xong. Mục tiêu thật thường là DC.
+- Bỏ qua tài khoản dịch vụ (có SPN) — nơi mở ra Kerberoasting ở bài 3.5.
 
 ## Kiểm tra nhanh
 
 <Quiz
   client:visible
   questions={[
-    { q: 'Máy nào là mục tiêu giá trị nhất trong một domain?', options: ['Máy in', 'Domain Controller', 'Máy của nhân viên mới'], answer: 1, explain: 'DC giữ cơ sở dữ liệu AD và xử lý xác thực; chiếm được nó gần như chiếm cả domain.' },
-    { q: 'Trong Kerberos, "vé tổng" (TGT) dùng để làm gì?', options: ['Truy cập thẳng mọi dịch vụ', 'Chứng minh đã đăng nhập, để xin các vé dịch vụ riêng', 'Lưu mật khẩu'], answer: 1, explain: 'TGT chứng minh danh tính và được dùng để xin vé cho từng dịch vụ cụ thể.' },
-    { q: 'Ranh giới an ninh ngoài cùng của AD là gì?', options: ['Domain', 'Forest', 'Một máy tính'], answer: 1, explain: 'Forest là ranh giới an ninh thật sự; trong đó có thể có nhiều domain.' },
+    { q: 'Máy nào là mục tiêu giá trị nhất trong một domain?', options: ['Máy in', 'Domain Controller', 'Máy nhân viên mới'], answer: 1, explain: 'DC giữ cơ sở dữ liệu AD và xử lý xác thực; chiếm được gần như chiếm cả domain.' },
+    { q: 'Trong Kerberos, TGT dùng để làm gì?', options: ['Truy cập thẳng mọi dịch vụ', 'Chứng minh đã đăng nhập, để xin các vé dịch vụ (TGS)', 'Lưu mật khẩu'], answer: 1, explain: 'TGT chứng minh danh tính và được dùng để xin vé riêng cho từng dịch vụ.' },
+    { q: 'BloodHound giúp gì cho pentest AD?', options: ['Quét cổng', 'Vẽ đồ thị quan hệ quyền hạn và chỉ đường đi tới Domain Admin', 'Bẻ mật khẩu'], answer: 1, explain: 'Nó gom hàng nghìn quan hệ thành đồ thị và tìm đường đi ngắn nhất tới quyền quản trị.' },
+    { q: 'Tài khoản có servicePrincipalName (SPN) mở ra kỹ thuật nào ở bài sau?', options: ['Phishing', 'Kerberoasting', 'SQL injection'], answer: 1, explain: 'Tài khoản có SPN có thể bị Kerberoasting để lấy và bẻ hash mật khẩu (bài 3.5).' },
   ]}
 />
 
 ## Ghi nhớ
 
-- AD quản lý tập trung người dùng và máy; domain controller là trung tâm.
-- Domain nằm trong tree, tree nằm trong forest; forest là ranh giới an ninh.
-- Kerberos dùng vé thay cho việc gửi mật khẩu khắp nơi; TGT xin ra vé dịch vụ.
+- AD quản lý tập trung; DC là trung tâm; forest là ranh giới an ninh.
+- Kerberos dùng vé: TGT chứng minh đăng nhập, TGS cho từng dịch vụ.
+- Liệt kê bằng `rpcclient`, `ldapsearch`, và nhất là BloodHound để thấy đường đi.

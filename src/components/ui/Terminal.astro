@@ -1,0 +1,29 @@
+---
+// Khối "phiên terminal" tĩnh để hiển thị lệnh và kết quả mẫu trong bài học.
+// Dùng: <Terminal title="..."> rồi dán nội dung dạng text (đã định dạng sẵn).
+interface Props {
+  title?: string;
+  user?: string;
+  host?: string;
+}
+const { title, user = 'kali', host = 'kali' } = Astro.props;
+---
+<div class="term-static">
+  {title && <p class="term-static-title">{title}</p>}
+  <div class="term-static-body">
+    <span class="term-static-dots" aria-hidden="true"><i></i><i></i><i></i></span>
+    <pre><code><slot /></code></pre>
+  </div>
+</div>
+
+<style>
+  .term-static { margin: 1.4em 0; }
+  .term-static-title { font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); margin: 0 0 6px; font-weight: 600; }
+  .term-static-body { background: var(--code-bg); border-radius: var(--radius); overflow: hidden; }
+  .term-static-dots { display: flex; gap: 6px; padding: 10px 14px 0; }
+  .term-static-dots i { width: 11px; height: 11px; border-radius: 50%; background: #3a3f45; display: block; }
+  .term-static-dots i:first-child { background: #e06c5a; }
+  .term-static-dots i:nth-child(2) { background: #e0b04a; }
+  .term-static-dots i:nth-child(3) { background: #5ba85b; }
+  .term-static pre { background: none !important; margin: 0; padding: 10px 16px 16px; font-size: 0.82rem; line-height: 1.6; }
+</style>

@@ -2,13 +2,13 @@
 title: "Lỗ hổng phía client và kỹ thuật xã hội"
 code: "2.4"
 level: 2
-summary: "Con người thường là mắt xích yếu nhất. Nhận diện lừa đảo và hiểu vì sao nó hiệu quả."
-duration: "50 phút"
+summary: "Con người và phần mềm client là mắt xích yếu. Cơ chế tấn công, công cụ, và cách phòng cả hai mặt."
+duration: "55 phút"
 objectives:
-  - "Hiểu vì sao con người là mục tiêu, không chỉ máy móc"
-  - "Nhận ra các dấu hiệu của email lừa đảo (phishing)"
-  - "Biết lỗ hổng phía client khác phía server ở đâu"
-  - "Nắm cách phòng thủ dựa trên con người và kỹ thuật"
+  - "Hiểu lỗ hổng phía client khác phía server ở đâu"
+  - "Nhận ra cơ chế tài liệu độc hại (macro) và vì sao cần nạn nhân thao tác"
+  - "Nhận diện email lừa đảo qua các dấu hiệu thật"
+  - "Nắm phòng thủ dựa trên con người và kỹ thuật"
 ---
 import Callout from '../../components/ui/Callout.astro';
 import PhishingSpotter from '../../components/sim/PhishingSpotter.tsx';
@@ -16,45 +16,46 @@ import Quiz from '../../components/sim/Quiz.tsx';
 
 ## Hình dung trước
 
-Một kẻ trộm có thể mất nhiều ngày để phá khoá. Hoặc chỉ cần mặc đồng phục thợ sửa ống nước và gõ cửa. Kỹ thuật xã hội là cách thứ hai: thay vì đánh vào máy móc, đánh vào niềm tin của con người.
+Một kẻ trộm có thể mất nhiều ngày phá khoá. Hoặc chỉ cần mặc đồng phục thợ sửa ống nước và gõ cửa. Kỹ thuật xã hội là cách thứ hai: thay vì đánh vào máy móc, đánh vào niềm tin của con người.
 
 ## Kiến thức chính
 
 ### Phía client là gì
 
-Ở bài 2.3, lỗ hổng nằm ở máy chủ. Lỗ hổng phía client nằm ở phần mềm người dùng chạy: trình duyệt, phần mềm đọc PDF, bộ công cụ văn phòng. Kẻ tấn công không tấn công máy chủ, mà dụ nạn nhân mở một file hoặc trang web độc hại để khai thác phần mềm trên máy họ.
+Ở bài 2.3, lỗ hổng nằm ở máy chủ. Lỗ hổng phía client nằm ở phần mềm người dùng chạy: trình duyệt, phần mềm đọc PDF, bộ công cụ văn phòng. Kẻ tấn công không tấn công máy chủ mà dụ nạn nhân mở một file hoặc trang web độc hại để khai thác phần mềm trên máy họ. Vì thế bước đầu luôn cần nạn nhân thao tác (nhớ chỉ số "cần nạn nhân thao tác" trong CVSS, bài 2.5).
 
-Điều này giải thích vì sao bước đầu thường cần nạn nhân thao tác (nhớ lại chỉ số "cần nạn nhân thao tác" trong CVSS ở bài 2.5).
+### Cơ chế tài liệu độc hại
 
-### Kỹ thuật xã hội
+Con đường phổ biến nhất là một file văn phòng chứa **macro** — đoạn mã nhỏ nhúng trong tài liệu. Khi nạn nhân mở file và bấm "Enable Content", macro chạy và tải về phần mềm điều khiển từ xa. Đây là lý do mọi bộ Office hiện đại chặn macro mặc định và hiện cảnh báo lớn màu vàng.
 
-Hầu hết dựa vào vài đòn bẩy tâm lý:
+Các biến thể khác: file đính kèm có **đuôi kép** (`HoaDon.pdf.exe` — thực chất là chương trình), hoặc link tới trang khai thác lỗ hổng trình duyệt chưa vá.
 
-- **Gấp gáp:** "trong vòng 2 giờ nếu không tài khoản bị khoá".
-- **Quyền uy:** giả danh sếp, bộ phận IT, ngân hàng.
-- **Sợ hãi:** doạ mất tiền, mất tài khoản.
-- **Tò mò hoặc tham:** "bạn trúng thưởng", "xem ai vừa nhắc tới bạn".
+### Công cụ
 
-Phishing (lừa đảo qua email) là hình thức phổ biến nhất.
+Pentester mô phỏng các đợt này bằng công cụ chuyên dụng (ví dụ **SET — Social-Engineer Toolkit** để dựng trang đăng nhập giả và chiến dịch email), luôn **trong phạm vi được khách hàng cho phép bằng văn bản**. Mục tiêu là đo mức độ nhân viên bị lừa và kiểm tra lớp phòng thủ, không phải gây hại.
+
+### Đòn bẩy tâm lý
+
+Hầu hết lừa đảo dựa vào: **gấp gáp** ("trong 2 giờ"), **quyền uy** (giả sếp, IT, ngân hàng), **sợ hãi** (mất tiền, mất tài khoản), **tò mò/tham** ("bạn trúng thưởng").
 
 ### Tự tập nhận diện
 
-Đây là một email giả gửi tới nhân viên công ty tưởng tượng "Minh An". Bấm vào mọi chỗ bạn thấy đáng ngờ:
+Email giả gửi tới nhân viên công ty tưởng tượng "Minh An". Bấm vào mọi chỗ đáng ngờ:
 
 <PhishingSpotter client:visible />
 
-Càng tìm được nhiều dấu hiệu, bạn càng khó bị lừa ngoài đời. Lưu ý: email thật của kẻ tấn công giỏi có thể không có lỗi chính tả, nên đừng chỉ dựa vào một dấu hiệu.
+Càng tìm được nhiều dấu hiệu, bạn càng khó bị lừa ngoài đời. Email của kẻ tấn công giỏi có thể không có lỗi chính tả, nên đừng chỉ dựa vào một dấu hiệu — hãy kiểm tra tên miền người gửi và đường dẫn thật của link.
 
 ## Góc phòng thủ
 
 <Callout type="defense">
-Phòng thủ kỹ thuật xã hội cần cả hai mặt. Về con người: đào tạo nhân viên nhận biết dấu hiệu, tạo quy trình để nghi ngờ thì xác minh qua kênh khác (gọi điện cho IT thay vì bấm link). Về kỹ thuật: bật xác thực hai lớp (2FA) để mật khẩu lộ cũng chưa đủ đăng nhập, lọc email, và cập nhật phần mềm client để vá các lỗ hổng bị khai thác qua file độc hại.
+Phòng thủ cần cả hai mặt. <strong>Con người:</strong> đào tạo nhận biết dấu hiệu, lập quy trình "nghi ngờ thì xác minh qua kênh khác" (gọi điện cho IT thay vì bấm link), diễn tập phishing nội bộ. <strong>Kỹ thuật:</strong> bật xác thực hai lớp (2FA) để mật khẩu lộ cũng chưa đủ đăng nhập; chặn macro từ Internet; lọc email và đánh dấu thư từ ngoài; cập nhật phần mềm client để vá lỗ hổng bị khai thác qua file độc hại.
 </Callout>
 
 ## Lỗi người mới hay gặp
 
 - Coi thường kỹ thuật xã hội vì nó "không kỹ thuật". Thực tế đây là con đường vào phổ biến nhất.
-- Chỉ dựa vào lỗi chính tả để nhận diện. Hãy kiểm tra tên miền người gửi và đường dẫn thật của link.
+- Chỉ dựa vào lỗi chính tả để nhận diện. Hãy kiểm tra tên miền và link thật.
 - Quên rằng 2FA là lớp bảo vệ mạnh khi mật khẩu bị lộ.
 
 ## Kiểm tra nhanh
@@ -62,14 +63,14 @@ Phòng thủ kỹ thuật xã hội cần cả hai mặt. Về con người: đ�
 <Quiz
   client:visible
   questions={[
-    { q: 'Vì sao bước khai thác phía client thường cần nạn nhân thao tác?', options: ['Vì phần mềm client tự động tấn công', 'Vì kẻ tấn công cần nạn nhân mở file hoặc trang độc hại', 'Vì client không có lỗ hổng'], answer: 1, explain: 'Khai thác xảy ra khi nạn nhân mở nội dung độc hại bằng phần mềm của họ.' },
-    { q: 'Dấu hiệu đáng tin cậy nhất để nghi một email lừa đảo là gì?', options: ['Có lỗi chính tả', 'Tên miền người gửi và đường dẫn link thật không khớp với tổ chức', 'Email dài'], answer: 1, explain: 'Tên miền giả và link ẩn là dấu hiệu mạnh; lỗi chính tả thì không phải lúc nào cũng có.' },
-    { q: 'Biện pháp kỹ thuật nào giúp giảm hại khi mật khẩu bị lộ qua phishing?', options: ['Đổi màu giao diện', 'Bật xác thực hai lớp (2FA)', 'Xoá email'], answer: 1, explain: '2FA yêu cầu yếu tố thứ hai, nên chỉ có mật khẩu là chưa đủ để đăng nhập.' },
+    { q: 'Vì sao khai thác phía client thường cần nạn nhân thao tác?', options: ['Phần mềm client tự tấn công', 'Cần nạn nhân mở file hoặc trang độc hại bằng phần mềm của họ', 'Client không có lỗ hổng'], answer: 1, explain: 'Khai thác xảy ra khi nạn nhân mở nội dung độc hại.' },
+    { q: 'Vì sao Office hiện đại chặn macro mặc định?', options: ['Để chạy nhanh hơn', 'Vì macro là con đường phổ biến để chạy mã độc khi mở tài liệu', 'Vì macro đã lỗi thời'], answer: 1, explain: 'Macro có thể chạy mã khi nạn nhân bật nội dung, nên bị chặn mặc định.' },
+    { q: 'Biện pháp kỹ thuật nào giảm hại khi mật khẩu bị lộ qua phishing?', options: ['Đổi màu giao diện', 'Bật xác thực hai lớp (2FA)', 'Xoá email'], answer: 1, explain: '2FA yêu cầu yếu tố thứ hai, nên chỉ mật khẩu là chưa đủ.' },
   ]}
 />
 
 ## Ghi nhớ
 
-- Lỗ hổng phía client nằm ở phần mềm người dùng, thường cần nạn nhân mở nội dung độc hại.
-- Kỹ thuật xã hội đánh vào tâm lý: gấp gáp, quyền uy, sợ hãi, tò mò.
-- Phòng thủ cần cả đào tạo con người lẫn biện pháp kỹ thuật như 2FA và cập nhật phần mềm.
+- Lỗ hổng phía client nằm ở phần mềm người dùng; thường cần nạn nhân mở nội dung độc hại.
+- Macro trong tài liệu và đuôi kép là hai cơ chế kinh điển; công cụ như SET chỉ dùng khi được phép.
+- Phòng thủ cần cả đào tạo con người lẫn kỹ thuật: 2FA, chặn macro, cập nhật client.

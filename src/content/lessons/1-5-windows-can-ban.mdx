@@ -2,45 +2,36 @@
 title: "Windows căn bản"
 code: "1.5"
 level: 1
-summary: "Người dùng, nhóm, dịch vụ và registry: những khái niệm Windows mà pentester cần nắm."
-duration: "60 phút"
+summary: "Người dùng, nhóm, dịch vụ, registry — và các lệnh cmd/PowerShell để liệt kê một máy Windows."
+duration: "75 phút"
 objectives:
-  - "Hiểu mô hình người dùng và nhóm trên Windows"
-  - "Biết các tài khoản quyền cao: Administrator và SYSTEM"
-  - "Nắm vai trò của dịch vụ (service) và registry"
-  - "Nhận ra vì sao Windows là mục tiêu lớn trong môi trường doanh nghiệp"
+  - "Hiểu mô hình người dùng, nhóm, SYSTEM trên Windows"
+  - "Liệt kê một máy Windows bằng whoami, net, systeminfo"
+  - "Đọc đặc quyền token và nhận ra cái nguy hiểm"
+  - "Tra dịch vụ và registry bằng sc và reg"
 ---
 import Callout from '../../components/ui/Callout.astro';
+import Terminal from '../../components/ui/Terminal.astro';
 import ConceptMap from '../../components/sim/ConceptMap.tsx';
 import Quiz from '../../components/sim/Quiz.tsx';
 
 ## Hình dung trước
 
-Nếu Linux giống một căn nhà gọn gàng mọi thứ để ngoài tủ, thì Windows giống một toà nhà văn phòng lớn: có phòng nhân sự quản lý thẻ ra vào, có hệ thống trung tâm điều khiển mọi cửa. Phần lớn máy tính trong doanh nghiệp chạy Windows, nên hiểu nó là bắt buộc.
+Nếu Linux giống căn nhà gọn gàng mọi thứ để ngoài tủ, thì Windows giống toà nhà văn phòng lớn: có phòng nhân sự quản lý thẻ ra vào, có hệ thống trung tâm điều khiển mọi cửa. Phần lớn máy tính doanh nghiệp chạy Windows, nên hiểu nó là bắt buộc.
 
 ## Kiến thức chính
 
-### Người dùng và nhóm
+### Người dùng, nhóm, và các tài khoản quyền cao
 
-Windows cũng có người dùng và nhóm như Linux, nhưng tên gọi khác:
+- **Administrator** — quản trị máy, tương tự root.
+- **SYSTEM** — tài khoản hệ điều hành dùng để chạy thành phần lõi; quyền còn cao hơn Administrator. Nhiều lần "leo thang đặc quyền" trên Windows chính là trở thành SYSTEM.
+- **Nhóm Administrators** — thành viên có quyền quản trị.
 
-- **Administrator** — tài khoản quản trị, tương tự root.
-- **SYSTEM** — tài khoản mà hệ điều hành dùng để chạy các thành phần lõi; quyền còn cao hơn Administrator ở một số mặt. Nhiều lần "leo thang đặc quyền" trên Windows chính là trở thành SYSTEM.
-- **Nhóm Administrators** — thành viên nhóm này có quyền quản trị.
+### Dịch vụ và registry
 
-### Dịch vụ (service)
+**Dịch vụ** là chương trình chạy ngầm dưới một tài khoản; dịch vụ chạy quyền SYSTEM mà cấu hình sai là con đường chiếm quyền (bài 3.2). **Registry** là cơ sở dữ liệu cấu hình trung tâm: thiết lập hệ thống, phần mềm tự chạy khi khởi động, đôi khi cả mật khẩu lưu sẵn.
 
-Dịch vụ là chương trình chạy ngầm, thường tự khởi động cùng máy, ví dụ máy chủ web hay phần mềm diệt virus. Mỗi dịch vụ chạy dưới một tài khoản. Nếu một dịch vụ chạy với quyền SYSTEM mà lại có cấu hình sai, nó trở thành con đường để chiếm quyền. Đây là chủ đề của bài 3.2.
-
-### Registry
-
-Registry là một cơ sở dữ liệu trung tâm lưu cấu hình của Windows: thiết lập hệ thống, phần mềm nào tự chạy khi khởi động, và nhiều thứ khác. Pentester quan tâm tới registry vì nó có thể chứa mật khẩu lưu sẵn, hoặc các mục cho phép chạy chương trình khi máy khởi động.
-
-### Vì sao Windows quan trọng với OSCP
-
-Doanh nghiệp thường quản lý hàng trăm máy Windows tập trung bằng Active Directory (Cấp 3). Chiếm được một máy Windows thường chỉ là bước đầu; mục tiêu thật là lan ra cả hệ thống.
-
-## Sơ đồ: ai có quyền gì
+### Ai có quyền gì
 
 <ConceptMap
   client:visible
@@ -49,9 +40,9 @@ Doanh nghiệp thường quản lý hàng trăm máy Windows tập trung bằng 
   height={300}
   nodes={[
     { id: 'system', label: 'SYSTEM', x: 320, y: 55, tone: 'warn', detail: 'Tài khoản của hệ điều hành. Quyền cao nhất trên máy. Đích đến của leo thang đặc quyền.' },
-    { id: 'admin', label: 'Administrator', x: 320, y: 140, tone: 'accent', detail: 'Quản trị máy: cài phần mềm, đổi cấu hình, đọc dữ liệu của mọi người dùng.' },
-    { id: 'user', label: 'Người dùng thường', x: 180, y: 230, detail: 'Chỉ làm việc trong phạm vi của mình. Điểm khởi đầu thường thấy sau khi chiếm được một tài khoản.' },
-    { id: 'svc', label: 'Tài khoản dịch vụ', x: 460, y: 230, detail: 'Tài khoản dành riêng để chạy một dịch vụ. Quyền tuỳ cấu hình; cấu hình sai có thể bị lợi dụng để leo thang.' },
+    { id: 'admin', label: 'Administrator', x: 320, y: 140, tone: 'accent', detail: 'Quản trị máy: cài phần mềm, đổi cấu hình, đọc dữ liệu mọi người dùng.' },
+    { id: 'user', label: 'Người dùng thường', x: 180, y: 230, detail: 'Làm việc trong phạm vi của mình. Điểm khởi đầu sau khi chiếm một tài khoản.' },
+    { id: 'svc', label: 'Tài khoản dịch vụ', x: 460, y: 230, detail: 'Chạy một dịch vụ. Quyền tuỳ cấu hình; cấu hình sai có thể bị lợi dụng để leo thang.' },
   ]}
   edges={[
     { from: 'user', to: 'admin', label: 'leo thang', dashed: true },
@@ -60,31 +51,89 @@ Doanh nghiệp thường quản lý hàng trăm máy Windows tập trung bằng 
   ]}
 />
 
+## Thực hành: liệt kê một máy Windows
+
+Vào được một máy Windows (ví dụ qua RDP hoặc một shell), những lệnh đầu tiên:
+
+**Tôi là ai và có đặc quyền gì** (chạy trong cmd):
+
+<Terminal title="whoami /priv — đặc quyền của token hiện tại">
+C:\&gt; whoami
+megacorp\jdoe
+
+C:\&gt; whoami /priv
+Privilege Name                Description                     State
+============================= =============================== ========
+SeImpersonatePrivilege        Impersonate a client after auth Enabled   &lt;-- đáng chú ý
+SeChangeNotifyPrivilege       Bypass traverse checking        Enabled
+</Terminal>
+
+`SeImpersonatePrivilege` ở trạng thái Enabled là một đặc quyền nổi tiếng có thể dẫn tới SYSTEM (bài 3.2). Luôn đọc kỹ danh sách này.
+
+**Người dùng và nhóm trên máy:**
+
+<Terminal title="net user và net localgroup">
+C:\&gt; net user
+User accounts for \\WEB01
+-------------------------------------------------------------
+Administrator   jdoe            svc_backup      Guest
+
+C:\&gt; net localgroup administrators
+Members
+-------------------------------------------------------------
+Administrator
+megacorp\domain admins
+</Terminal>
+
+**Thông tin hệ thống và bản vá** (để tra lỗ hổng nhân Windows):
+
+<Terminal title="systeminfo lọc nhanh phiên bản">
+C:\&gt; systeminfo | findstr /B /C:"OS Name" /C:"OS Version"
+OS Name:      Microsoft Windows Server 2016 Standard
+OS Version:   10.0.14393 N/A Build 14393
+</Terminal>
+
+**Dịch vụ và registry:**
+
+<Terminal title="sc query và reg query">
+C:\&gt; sc qc UsoSvc
+    BINARY_PATH_NAME   : C:\Windows\system32\svchost.exe -k netsvcs
+
+C:\&gt; reg query HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Run
+    OneDrive    REG_SZ    C:\Users\jdoe\AppData\...\OneDrive.exe
+</Terminal>
+
+Trong PowerShell, các lệnh tương đương mạnh hơn: `Get-LocalUser`, `Get-Service`, `Get-CimInstance Win32_Service`. PowerShell là ngôn ngữ chính để tự động hoá trên Windows (bài 1.6).
+
+<Callout type="note">
+Công cụ liệt kê tự động như <code>winPEAS</code> (Windows) và <code>linPEAS</code> (Linux) gom gần hết các kiểm tra trên vào một lần chạy và tô màu chỗ đáng ngờ. Nhưng hiểu từng lệnh thủ công trước, để biết công cụ đang nói gì.
+</Callout>
+
 ## Góc phòng thủ
 
 <Callout type="defense">
-Nguyên tắc quyền tối thiểu áp dụng mạnh trên Windows: người dùng hằng ngày không nên thuộc nhóm Administrators, và dịch vụ nên chạy bằng tài khoản quyền thấp nhất đủ dùng. Windows cũng có nhật ký sự kiện (Event Log) ghi lại đăng nhập và thay đổi quan trọng; bên phòng thủ dựa vào đó để phát hiện bất thường.
+Nguyên tắc quyền tối thiểu áp dụng mạnh trên Windows: người dùng hằng ngày không nên thuộc nhóm Administrators; dịch vụ chạy bằng tài khoản quyền thấp nhất đủ dùng; hạn chế cấp các đặc quyền nhạy cảm như SeImpersonate. Windows Event Log ghi lại đăng nhập và thay đổi quan trọng (ví dụ ID 4624 đăng nhập, 4672 cấp đặc quyền đặc biệt) để đội phòng thủ phát hiện bất thường.
 </Callout>
 
 ## Lỗi người mới hay gặp
 
-- Nghĩ Administrator là quyền cao nhất. Trên nhiều máy, SYSTEM còn cao hơn.
-- Bỏ qua các dịch vụ khi liệt kê một máy Windows.
-- Quen tay dùng lệnh Linux trên Windows. Windows có PowerShell và cú pháp riêng (bài 1.6).
+- Nghĩ Administrator là cao nhất. Trên nhiều máy, SYSTEM còn cao hơn.
+- Bỏ qua `whoami /priv`, nơi lộ các đặc quyền có thể leo thang.
+- Quen tay dùng lệnh Linux trên Windows; học cú pháp cmd và PowerShell riêng.
 
 ## Kiểm tra nhanh
 
 <Quiz
   client:visible
   questions={[
-    { q: 'Tài khoản nào thường là đích đến cuối cùng khi leo thang đặc quyền trên Windows?', options: ['Guest', 'SYSTEM', 'Người dùng thường'], answer: 1, explain: 'SYSTEM có quyền cao nhất để điều khiển máy.' },
-    { q: 'Registry trên Windows là gì?', options: ['Một thư mục chứa file tạm', 'Cơ sở dữ liệu cấu hình trung tâm', 'Một loại virus'], answer: 1, explain: 'Registry lưu cấu hình hệ thống và phần mềm.' },
-    { q: 'Vì sao dịch vụ (service) đáng chú ý với pentester?', options: ['Vì chúng luôn an toàn', 'Vì cấu hình sai của dịch vụ chạy quyền cao có thể bị lợi dụng', 'Vì chúng không bao giờ chạy'], answer: 1, explain: 'Dịch vụ chạy với quyền cao mà cấu hình sai là con đường leo thang phổ biến.' },
+    { q: 'Tài khoản nào thường là đích đến cuối cùng khi leo thang trên Windows?', options: ['Guest', 'SYSTEM', 'Người dùng thường'], answer: 1, explain: 'SYSTEM có quyền cao nhất để điều khiển máy.' },
+    { q: 'Lệnh nào hiển thị các đặc quyền của token hiện tại?', options: ['net user', 'whoami /priv', 'systeminfo'], answer: 1, explain: '`whoami /priv` liệt kê đặc quyền; chỗ hay có đường leo thang như SeImpersonate.' },
+    { q: 'Bạn cần biết phiên bản và build của Windows để tra lỗ hổng. Lệnh nào?', options: ['whoami', 'systeminfo', 'ping'], answer: 1, explain: '`systeminfo` cho OS Name/Version/Build, dùng để tra CVE nhân Windows.' },
   ]}
 />
 
 ## Ghi nhớ
 
-- Windows: Administrator ~ quản trị, SYSTEM ~ quyền cao nhất của hệ điều hành.
-- Dịch vụ chạy ngầm dưới một tài khoản; cấu hình sai là rủi ro.
-- Registry là kho cấu hình trung tâm, đáng để liệt kê.
+- Administrator ~ quản trị, SYSTEM ~ quyền cao nhất của hệ điều hành.
+- Liệt kê Windows: `whoami /priv`, `net user`, `net localgroup`, `systeminfo`, `sc qc`, `reg query`.
+- `winPEAS`/`linPEAS` tự động hoá, nhưng hiểu lệnh thủ công trước.
