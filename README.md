@@ -2,6 +2,22 @@
 
 Một website tiếng Việt dạy kiến thức bảo mật theo hướng chứng chỉ OSCP, đi từ con số 0 tới nâng cao. Mỗi bài giải thích bằng ví dụ đời thường trước, rồi tới kiến thức, kèm sơ đồ hoặc mô phỏng tương tác chạy ngay trong trình duyệt.
 
+## 🌐 Truy cập website
+
+**👉 https://vacif.github.io/OSCP/**
+
+Mở trực tiếp trên trình duyệt (máy tính hoặc điện thoại), không cần cài gì. Một vài điểm vào nhanh:
+
+| Trang | Đường dẫn |
+|---|---|
+| Trang chủ | <https://vacif.github.io/OSCP/> |
+| Lộ trình 24 bài | <https://vacif.github.io/OSCP/lo-trinh/> |
+| Từ điển thuật ngữ | <https://vacif.github.io/OSCP/thuat-ngu/> |
+| Quy tắc đạo đức | <https://vacif.github.io/OSCP/quy-tac/> |
+| Bài đầu tiên (0.1) | <https://vacif.github.io/OSCP/bai/0-1-pentest-la-gi/> |
+
+> Trang được đăng tự động bằng GitHub Pages. Nếu vừa cập nhật mà chưa thấy đổi, chờ 1–2 phút rồi tải lại trang (hoặc mở ở chế độ ẩn danh để bỏ qua cache).
+
 > **Về đạo đức và pháp lý:** tài liệu này để học cách hệ thống bị tấn công và cách bảo vệ nó. Chỉ thực hành trong lab của chính bạn hoặc nơi bạn được cho phép bằng văn bản. Mọi mô phỏng trên trang chạy hoàn toàn trong trình duyệt với dữ liệu giả, không kết nối tới hệ thống thật nào. Đọc trang **Quy tắc** trước khi học.
 
 ## Nội dung
@@ -39,11 +55,15 @@ npm run check:content   # kiểm tra nội dung: đủ bài, không trùng mã, 
 npm run build           # tự chạy check:content rồi build ra thư mục dist/
 ```
 
-## Triển khai
+## Triển khai (GitHub Pages)
 
-Mỗi lần đẩy lên nhánh `main`, GitHub Actions tự build và đăng lên GitHub Pages (xem `.github/workflows/deploy.yml`). Trong phần Settings → Pages của repository, chọn nguồn là **GitHub Actions**.
+Trang đang chạy tại **https://vacif.github.io/OSCP/**.
 
-Trang được cấu hình cho địa chỉ `https://<tài-khoản>.github.io/OSCP/`. Nếu bạn đổi tên repository, sửa `site` và `base` trong `astro.config.mjs` cho khớp.
+Cách hoạt động: mỗi lần đẩy lên nhánh `main`, GitHub Actions tự build và đăng lên GitHub Pages (xem `.github/workflows/deploy.yml`). Nguồn Pages đã đặt là **GitHub Actions** (trong Settings → Pages của repository).
+
+Lần đầu bật thủ công (nếu dựng một bản mới): vào **Settings → Pages → Build and deployment → Source → GitHub Actions**.
+
+Trang được cấu hình cho địa chỉ `https://<tài-khoản>.github.io/OSCP/` qua `site` và `base` trong `astro.config.mjs`. Nếu đổi tên tài khoản hoặc repository, sửa hai giá trị này cho khớp.
 
 ## Thêm hoặc sửa bài
 
